@@ -1758,7 +1758,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
 
         if (_clock.LastTransition == LyricsClockTransition.RestartDetected)
         {
-            _logger.LogInformation("[歌词] 播放位置回到开头，强制重置歌词滚动。");
+            _logger.LogInformation("[歌词] 播放位置回到开头，强制重置歌词滚动");
             ForceResetLyricsScrolling();
         }
     }
@@ -1849,7 +1849,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             if (!_cdpEverConnected)
             {
                 _cdpEverConnected = true;
-                _logger.LogInformation("[歌词] DevTools 进度已连接（端口 {Port}），后面就用它校准歌词。",
+                _logger.LogInformation("[歌词] DevTools 进度已连接（端口 {Port}），后面就用它校准歌词",
                     _cdpTimelineReader.ConnectedPort);
             }
 
@@ -1857,7 +1857,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             {
                 _lastCdpLogAt = now;
                 _logger.LogInformation(
-                    "[歌词] DevTools 校准：进度 {Position} / {Duration}（{Percent:P1}），时钟 {Current}（差 {Drift:0.0}s）。",
+                    "[歌词] DevTools 校准：进度 {Position} / {Duration}（{Percent:P1}），时钟 {Current}（差 {Drift:0.0}s）",
                     position.ToString(@"mm\:ss"),
                     GetCdpDuration().ToString(@"mm\:ss"),
                     timeline.Ratio,
