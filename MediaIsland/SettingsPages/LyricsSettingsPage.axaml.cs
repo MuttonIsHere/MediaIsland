@@ -30,6 +30,8 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     private string _amllApiBaseUrl = string.Empty;
     private string _amllConnectionStatus = "留空表示不使用 AMLL 来源。";
     private string _sPlayerNextApiBaseUrl = LyricsSourceSettings.DefaultSPlayerNextApiBaseUrl;
+    private bool _enableCdpTimeline = true;
+    private string _cdpTimelineStatus = "未检测。";
     private string _sPlayerNextConnectionStatus = "默认 http://127.0.0.1:14558。";
     private string _lyricsCacheStatus = string.Empty;
     private string _currentLyricsSourceDisplay = "当前使用：暂无";
@@ -86,6 +88,24 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     {
         get => _sPlayerNextConnectionStatus;
         private set => SetProperty(ref _sPlayerNextConnectionStatus, value);
+    }
+
+    public bool EnableCdpTimeline
+    {
+        get => _enableCdpTimeline;
+        set
+        {
+            if (SetProperty(ref _enableCdpTimeline, value))
+            {
+                PersistLyricsSettings();
+            }
+        }
+    }
+
+    public string CdpTimelineStatus
+    {
+        get => _cdpTimelineStatus;
+        private set => SetProperty(ref _cdpTimelineStatus, value);
     }
 
     public bool StripCreditLines
@@ -665,6 +685,9 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
         _maskEnabled = Settings.Lyrics.MaskEnabled;
         _maskWordsText = LyricsCleanupRuleText.Format(Settings.Lyrics.MaskWords);
         _maskRegexesText = LyricsCleanupRuleText.Format(Settings.Lyrics.MaskRegexes);
+        _enableCdpTimeline = Settings.Lyrics.EnableCdpTimeline;
+        OnPropertyChanged(nameof(EnableCdpTimeline));
+        CdpTimelineStatus = NetEaseLaunchHelper.DescribeState(NetEaseCdpTimelineReader.DefaultDebuggingPort);
         OnPropertyChanged(nameof(StripCreditLines));
         OnPropertyChanged(nameof(CreditKeywordsText));
         OnPropertyChanged(nameof(CreditRegexesText));
@@ -702,7 +725,8 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
             CreditRegexes = creditRegexes.Valid,
             MaskEnabled = MaskEnabled,
             MaskWords = LyricsCleanupRuleText.ParseLines(MaskWordsText),
-            MaskRegexes = maskRegexes.Valid
+            MaskRegexes = maskRegexes.Valid,
+            EnableCdpTimeline = EnableCdpTimeline
         });
         SaveSettings();
     }
@@ -773,6 +797,56 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
         {
             AmllConnectionStatus = $"连接失败：{ex.Message}";
         }
+    }
+
+    private async void CheckCdpTimelineOnClick(object? sender, RoutedEventArgs e)
+    {
+        await RefreshCdpTimelineStatusAsync();
+    }
+
+    private async void EnableCdpTimelineOnClick(object? sender, RoutedEventArgs e)
+    {
+        var message = string.Empty;
+        var ok = NetEaseLaunchHelper.TryRelaunchWithDebugging(
+            NetEaseCdpTimelineReader.DefaultDebuggingPort,
+            out message);
+        CdpTimelineStatus = message;
+        if (ok)
+        {
+            await RefreshCdpTimelineStatusAsync();
+        }
+    }
+
+    private async void LaunchCdpTimelineOnClick(object? sender, RoutedEventArgs e)
+    {
+        var message = string.Empty;
+        NetEaseLaunchHelper.TryLaunchWithDebugging(
+            NetEaseCdpTimelineReader.DefaultDebuggingPort,
+            out message);
+        CdpTimelineStatus = message;
+        await RefreshCdpTimelineStatusAsync();
+    }
+
+    /// <summary>
+    /// 轮询几秒等网易云的 DevTools 端口起来，然后把"能不能读到进度"写进状态行。
+    /// 用独立的读取器实例，避免和歌词组件里的长连接互相干扰。
+    /// </summary>
+    private async Task RefreshCdpTimelineStatusAsync()
+    {
+        using var reader = new NetEaseCdpTimelineReader();
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            if (await reader.TryReadAsync() is { } timeline)
+            {
+                CdpTimelineStatus =
+                    $"已连接：DevTools 端口 {reader.ConnectedPort} 可用，当前进度 {timeline.Position.ToString(@"mm\:ss")} / {timeline.Duration.ToString(@"mm\:ss")}（{timeline.Ratio:P0}）。";
+                return;
+            }
+
+            await Task.Delay(500);
+        }
+
+        CdpTimelineStatus = NetEaseLaunchHelper.DescribeState(NetEaseCdpTimelineReader.DefaultDebuggingPort);
     }
 
     private async void TestSPlayerNextConnectionOnClick(object? sender, RoutedEventArgs e)

@@ -128,6 +128,13 @@ public sealed class LyricsSourceSettings
 
     public List<string> MaskRegexes { get; set; } = [];
 
+    /// <summary>
+    /// 网易云精确进度：通过 CEF DevTools（--remote-debugging-port）读取客户端页面里的
+    /// 当前时间/总时长。网易云的 SMTC 时间轴恒为 0，开启后歌词才会跟着真实进度走。
+    /// 需要网易云以调试端口启动，未连上时自动回落到原本的推算方式。
+    /// </summary>
+    public bool EnableCdpTimeline { get; set; } = true;
+
     public static List<LyricsSourceEntry> CreateDefaultSources() =>
     [
         new() { Id = LyricsSourceId.AmllTtml, IsEnabled = false, UseWordSyncedLyrics = true },
@@ -148,6 +155,7 @@ public sealed class LyricsSourceSettings
             MaskEnabled = MaskEnabled,
             MaskWords = [.. MaskWords ?? []],
             MaskRegexes = [.. MaskRegexes ?? []],
+            EnableCdpTimeline = EnableCdpTimeline,
             Sources = (Sources ?? []).OfType<LyricsSourceEntry>().Select(source => new LyricsSourceEntry
             {
                 Id = source.Id,

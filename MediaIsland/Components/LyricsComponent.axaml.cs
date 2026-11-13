@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using ClassIsland.Core.Abstractions.Controls;
@@ -39,6 +40,21 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
     private static readonly TimeSpan LineRenderInterval = TimeSpan.FromMilliseconds(80);
     private static readonly TimeSpan TransitionFrameInterval = TimeSpan.FromMilliseconds(16);
 
+    /// <summary>DevTools 进度采样周期。网易云页面里的时间文本每秒更新，1 秒足够且开销可忽略。</summary>
+    private static readonly TimeSpan CdpTimelineInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>与时钟相差超过这个值才真正校正，避免把抖动也当成偏差。</summary>
+    private static readonly TimeSpan CdpReanchorThreshold = TimeSpan.FromMilliseconds(600);
+
+    /// <summary>超过这个大跳变就认为发生了拖动进度条，需要顺带强制重排一次歌词滚动。</summary>
+    private static readonly TimeSpan CdpLargeJumpThreshold = TimeSpan.FromSeconds(5);
+
+    /// <summary>成功读数的日志间隔。</summary>
+    private static readonly TimeSpan CdpLogInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>连续读不到这么久之后才升级成 Information，避免 CEF 掐连接时刷屏。</summary>
+    private static readonly TimeSpan CdpUnavailableLogDelay = TimeSpan.FromSeconds(30);
+
     private readonly IMediaService _mediaService;
     private readonly IEffectiveMediaSource? _effectiveSource;
     /// <summary>
@@ -51,6 +67,25 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
     private readonly DispatcherTimer _lyricsTimer;
     private readonly DispatcherTimer _transitionTimer;
     private readonly LyricsPlaybackClock _clock = new();
+
+    /// <summary>
+    /// 网易云 CEF DevTools 时间轴读取器。仅在媒体源是网易云、且用户开了
+    /// 「网易云精确进度（DevTools）」时才会真正去连 —— 它读的是客户端页面里的
+    /// "当前时间 / 总时长"，比 SMTC 上报的时间轴可靠得多。
+    /// </summary>
+    private readonly NetEaseCdpTimelineReader _cdpTimelineReader = new();
+    private DispatcherTimer? _cdpTimelineTimer;
+    private bool _cdpReading;
+    private TimeSpan? _cdpLastPosition;
+    private TimeSpan? _cdpLastDuration;
+    private string? _lastCdpFailureReason;
+    private long _lastCdpLogAt;
+    private long _cdpUnavailableSince;
+    private bool _cdpEverConnected;
+
+    /// <summary>KTV 逐字高亮用的"已唱"颜色，取自封面主题色；按缩略图引用缓存。</summary>
+    private Bitmap? _sungBrushSource;
+    private IBrush? _sungBrush;
     private readonly object _syncLock = new();
     private readonly List<ActiveLineVisual> _activeLineVisuals = [];
     private readonly LyricsSearchSkipTracker _lyricsSearchSkipTracker = new();
@@ -109,6 +144,11 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             Interval = TransitionFrameInterval
         };
         _transitionTimer.Tick += TransitionTimer_OnTick;
+        _cdpTimelineTimer = new DispatcherTimer
+        {
+            Interval = CdpTimelineInterval
+        };
+        _cdpTimelineTimer.Tick += CdpTimelineTimer_OnTick;
     }
 
     private async void LyricsComponent_OnLoaded(object? sender, RoutedEventArgs e)
@@ -135,6 +175,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
 
         SetStatus("等待媒体信息...");
         UpdateRenderCadence();
+        _cdpTimelineTimer?.Start();
 
         try
         {
@@ -152,6 +193,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
     {
         _isLoaded = false;
         _lyricsTimer.Stop();
+        _cdpTimelineTimer?.Stop();
         UnsubscribeMediaSource();
         if (_effectiveSource is not null)
         {
@@ -517,7 +559,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
 
         if (_effectiveSource?.IsExternalMediaEffective == true)
         {
-            _clock.Update(e.MediaInfo);
+            ApplyPlaybackClock(e.MediaInfo);
             switch (e.ChangeKind)
             {
                 case MediaInfoChangeKind.CurrentSession:
@@ -538,7 +580,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             return;
         }
 
-        _clock.Update(e.MediaInfo);
+        ApplyPlaybackClock(e.MediaInfo);
         switch (e.ChangeKind)
         {
             case MediaInfoChangeKind.CurrentSession:
@@ -627,7 +669,8 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
 
         if (CurrentUiMediaInfo is { } media)
         {
-            _clock.Update(media);
+            ApplyPlaybackClock(media);
+            UpdateSungBrush(media);
             _lastTitle = media.Title;
             _lastArtist = media.Artist;
         }
@@ -653,7 +696,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             if (_effectiveSource?.IsExternalMediaEffective == true)
             {
                 ResetSkippedLyricsSearchState();
-                _clock.Update(info);
+                ApplyPlaybackClock(info);
                 ApplyExternalLyrics(_effectiveSource.EffectiveLyrics);
                 return;
             }
@@ -663,7 +706,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
                 return;
             }
 
-            _clock.Update(info);
+            ApplyPlaybackClock(info);
             if (string.Equals(info.Title, _lastTitle, StringComparison.Ordinal) &&
                 string.Equals(info.Artist, _lastArtist, StringComparison.Ordinal))
             {
@@ -799,10 +842,21 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             return;
         }
 
+        // 回绕边界要参考歌词末句：歌词不全、或播放器上报的时长偏短时，时钟不能提前回绕，
+        // 否则位置会突然归零，歌词看起来"重来"回第一句。
+        var contentEnd = LyricsContentRange.GetContentEnd(lyrics);
+        _clock.SetContentEnd(contentEnd);
         position = LyricsPresentationPosition.Compose(
             _clock.GetCurrentPosition(),
             _pluginSettings?.Lyrics.GetGlobalOffset(lyrics.Source) ?? TimeSpan.Zero,
             _outputLatency?.OutputLatency ?? TimeSpan.Zero);
+
+        // 越界守卫：越过末句后钉在末句，演唱结束前一直停在最后一句。
+        if (contentEnd > TimeSpan.Zero && position > contentEnd)
+        {
+            position = contentEnd;
+        }
+
         var activeLines = LyricsLineSelector.SelectActive(lyrics, position);
         var currentIndex = activeLines.Count > 0 ? activeLines[0].LineIndex : 0;
         var interlude = IsLyricsInterludeAnimationEnabled
@@ -1539,6 +1593,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
                 FontFamily = typography.Family,
                 FontWeight = typography.Weight,
                 Foreground = LyricsText.Foreground,
+                SungBrush = ResolveSungBrush(),
                 TextAlignment = textAlignment,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Opacity = opacity,
@@ -1612,6 +1667,7 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
             visual.WordPresenter.FontFamily = typography.Family;
             visual.WordPresenter.FontWeight = typography.Weight;
             visual.WordPresenter.Foreground = LyricsText.Foreground;
+            visual.WordPresenter.SungBrush = ResolveSungBrush();
             visual.WordPresenter.TextAlignment = textAlignment;
             visual.WordPresenter.Opacity = opacity;
             visual.WordPresenter.IsBackgroundLine = line.IsBackground;
@@ -1683,6 +1739,211 @@ public partial class LyricsComponent : ComponentBase<LyricsComponentConfig>
 
     private bool IsLyricsTransitionEnabled =>
         _pluginSettings?.IsLyricsTransitionEnabled ?? true;
+
+    /// <summary>
+    /// 统一入口：把最新的媒体信息喂给播放时钟，并在"曲尾回到开头"时强制重排一次歌词。
+    /// </summary>
+    private void ApplyPlaybackClock(MediaInfo info)
+    {
+        _clock.Update(info);
+        switch (_clock.LastTransition)
+        {
+            case LyricsClockTransition.TrackChanged:
+            case LyricsClockTransition.RestartDetected:
+                // 换歌、或单曲循环回到开头：DevTools 之前读到的位置已经作废。
+                _cdpLastPosition = null;
+                _cdpLastDuration = null;
+                break;
+        }
+
+        if (_clock.LastTransition == LyricsClockTransition.RestartDetected)
+        {
+            _logger.LogInformation("[歌词] 播放位置回到开头，强制重置歌词滚动。");
+            ForceResetLyricsScrolling();
+        }
+    }
+
+    /// <summary>
+    /// 清掉当前歌词行并立刻重排一次。
+    /// 单曲循环重头开始时若位置算得和上次一样，界面会"什么都不用改"从而卡在最后一句；
+    /// 先清空活动行索引再重排，就能强制刷新。
+    /// </summary>
+    private void ForceResetLyricsScrolling()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            ClearActiveLineVisuals();
+            RenderCurrentPositionOnce();
+        });
+    }
+
+    private async void CdpTimelineTimer_OnTick(object? sender, EventArgs e)
+    {
+        await ReadCdpTimelineAsync();
+    }
+
+    /// <summary>
+    /// 从网易云客户端的 DevTools 端口读一次真实进度，与本地时钟对齐。
+    /// 只在"媒体源是网易云 + 用户开启开关"时工作；读不到就安静地退回原有推算。
+    /// </summary>
+    private async Task ReadCdpTimelineAsync()
+    {
+        if (!_isLoaded || _cdpReading)
+        {
+            return;
+        }
+
+        if (_pluginSettings?.Lyrics is not { EnableCdpTimeline: true })
+        {
+            return;
+        }
+
+        if (CurrentUiMediaInfo is not { } info || !IsNetEaseApp(info.SourceApp))
+        {
+            return;
+        }
+
+        _cdpReading = true;
+        try
+        {
+            var reading = await _cdpTimelineReader.TryReadAsync().ConfigureAwait(true);
+            if (reading is not { } timeline)
+            {
+                LogCdpUnavailable(_cdpTimelineReader.LastFailureReason ?? "未知原因");
+                return;
+            }
+
+            if (timeline.HasExactTime)
+            {
+                _cdpLastPosition = timeline.Position;
+                if (timeline.Duration > TimeSpan.Zero)
+                {
+                    _cdpLastDuration = timeline.Duration;
+                }
+            }
+
+            var target = timeline.HasExactTime
+                ? timeline.Position
+                : ResolveCdpPositionFromRatio(timeline.Ratio);
+            if (target is not { } position)
+            {
+                LogCdpUnavailable("拿不到可用的时间");
+                return;
+            }
+
+            var current = _clock.GetCurrentPosition();
+            var drift = position - current;
+            var now = Environment.TickCount64;
+            if (drift.Duration() >= CdpReanchorThreshold)
+            {
+                var delta = _clock.Reanchor(position);
+                RenderCurrentPositionOnce();
+                if (delta.Duration() >= CdpLargeJumpThreshold)
+                {
+                    // 拖动进度条这种大跳变，光靠重设基准有时仍会被旧动画吃掉，强制重排一次。
+                    ForceResetLyricsScrolling();
+                }
+            }
+
+            _cdpUnavailableSince = 0;
+            if (!_cdpEverConnected)
+            {
+                _cdpEverConnected = true;
+                _logger.LogInformation("[歌词] DevTools 进度已连接（端口 {Port}），后面就用它校准歌词。",
+                    _cdpTimelineReader.ConnectedPort);
+            }
+
+            if (now - _lastCdpLogAt >= (long)CdpLogInterval.TotalMilliseconds)
+            {
+                _lastCdpLogAt = now;
+                _logger.LogInformation(
+                    "[歌词] DevTools 校准：进度 {Position} / {Duration}（{Percent:P1}），时钟 {Current}（差 {Drift:0.0}s）。",
+                    position.ToString(@"mm\:ss"),
+                    GetCdpDuration().ToString(@"mm\:ss"),
+                    timeline.Ratio,
+                    current.ToString(@"mm\:ss"),
+                    drift.TotalSeconds);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogCdpUnavailable(ex.Message);
+        }
+        finally
+        {
+            _cdpReading = false;
+        }
+    }
+
+    private TimeSpan GetCdpDuration() =>
+        _cdpLastDuration ?? (_cdpLastPosition ?? TimeSpan.Zero) + TimeSpan.FromSeconds(1);
+
+    private TimeSpan? ResolveCdpPositionFromRatio(double ratio)
+    {
+        // 只有百分比时，用页面给的总时长换算；没有总时长就按上一次的读数等比推进。
+        if (_cdpLastDuration is { } duration && duration > TimeSpan.Zero)
+        {
+            return TimeSpan.FromSeconds(duration.TotalSeconds * Math.Clamp(ratio, 0, 1));
+        }
+
+        return null;
+    }
+
+    private void LogCdpUnavailable(string reason)
+    {
+        if (string.Equals(reason, _lastCdpFailureReason, StringComparison.Ordinal) &&
+            _cdpUnavailableSince != 0)
+        {
+            var elapsed = Environment.TickCount64 - _cdpUnavailableSince;
+            if (elapsed < (long)CdpUnavailableLogDelay.TotalMilliseconds)
+            {
+                _logger.LogDebug("[歌词] DevTools 进度不可用：{Reason}", reason);
+                return;
+            }
+        }
+
+        _lastCdpFailureReason = reason;
+        if (_cdpUnavailableSince == 0)
+        {
+            _cdpUnavailableSince = Environment.TickCount64;
+            _logger.LogDebug("[歌词] DevTools 进度不可用：{Reason}", reason);
+            return;
+        }
+
+        _logger.LogInformation("[歌词] DevTools 进度不可用：{Reason}", reason);
+    }
+
+    private static bool IsNetEaseApp(string? sourceApp) =>
+        !string.IsNullOrEmpty(sourceApp) &&
+        (sourceApp.Contains("cloudmusic", StringComparison.OrdinalIgnoreCase) ||
+         sourceApp.Contains("netease", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>KTV 已唱色：取封面主题色；没有封面时返回 null，由 Presenter 回落到普通前景色。</summary>
+    private IBrush? ResolveSungBrush()
+    {
+        return _sungBrush;
+    }
+
+    private void UpdateSungBrush(MediaInfo info)
+    {
+        if (ReferenceEquals(_sungBrushSource, info.Thumbnail))
+        {
+            return;
+        }
+
+        _sungBrushSource = info.Thumbnail;
+        _sungBrush = null;
+        if (info.Thumbnail is null)
+        {
+            return;
+        }
+
+        var color = CoverThemeColorHelper.TryExtract(info.Thumbnail);
+        if (color is { } extracted)
+        {
+            _sungBrush = new SolidColorBrush(extracted);
+        }
+    }
 
     private void ApplyWordLyricsAnimationSettings(WordLyricsPresenter presenter)
     {

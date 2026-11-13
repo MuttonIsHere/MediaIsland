@@ -103,6 +103,26 @@
                        FontSize="12"
                        TextWrapping="Wrap"
                        Margin="0 4 0 8" />
+            <controls:FASettingsExpander IconSource="{ci:LucideIconSource &#xE42B;}"
+                                         Header="网易云精确进度（DevTools）"
+                                         Description="网易云不通过系统媒体接口上报播放进度，开启后从客户端页面读取真实时间，歌词才会跟着进度走。需要以调试端口启动网易云；连不上时自动回落到推算。">
+                <controls:FASettingsExpander.Footer>
+                    <ToggleSwitch IsChecked="{Binding EnableCdpTimeline, Mode=TwoWay}" />
+                </controls:FASettingsExpander.Footer>
+                <StackPanel Margin="12,6,12,10" Spacing="8" IsEnabled="{Binding EnableCdpTimeline}">
+                    <TextBlock Text="启动网易云时带上 --remote-debugging-port=9223，插件才能在 1 秒内读到播放进度。"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="检测" Click="CheckCdpTimelineOnClick" />
+                        <Button Content="重启网易云以启用" Click="EnableCdpTimelineOnClick" />
+                        <Button Content="启动网易云（精确同步版）" Click="LaunchCdpTimelineOnClick" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CdpTimelineStatus}"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </controls:FASettingsExpander>
             <controls:FASettingsExpander IconSource="{ci:LucideIconSource &#xE510;}"
                                          Header="歌词缓存"
                                          Description="搜索到的歌词会缓存到本地，避免重复搜索。清空后下次播放时重新搜索；固定的歌词不受影响。">

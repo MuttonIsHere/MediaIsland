@@ -71,6 +71,13 @@ public sealed class WordLyricsPresenter : Control
     public static readonly StyledProperty<IBrush?> ForegroundProperty =
         AvaloniaProperty.Register<WordLyricsPresenter, IBrush?>(nameof(Foreground));
 
+    /// <summary>
+    /// 已唱部分的强调色。为空时沿用 <see cref="Foreground"/>（与原行为一致）；
+    /// 设置后会呈现 KTV 式的"换色"效果。
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> SungBrushProperty =
+        AvaloniaProperty.Register<WordLyricsPresenter, IBrush?>(nameof(SungBrush));
+
     public static readonly StyledProperty<TextAlignment> TextAlignmentProperty =
         AvaloniaProperty.Register<WordLyricsPresenter, TextAlignment>(nameof(TextAlignment), TextAlignment.Center);
 
@@ -150,6 +157,12 @@ public sealed class WordLyricsPresenter : Control
         set => SetValue(ForegroundProperty, value);
     }
 
+    public IBrush? SungBrush
+    {
+        get => GetValue(SungBrushProperty);
+        set => SetValue(SungBrushProperty, value);
+    }
+
     public TextAlignment TextAlignment
     {
         get => GetValue(TextAlignmentProperty);
@@ -205,6 +218,7 @@ public sealed class WordLyricsPresenter : Control
             FontFamilyProperty,
             FontWeightProperty,
             ForegroundProperty,
+            SungBrushProperty,
             TextAlignmentProperty,
             IsWordLiftEnabledProperty,
             IsWordEmphasisEnabledProperty,
@@ -256,7 +270,7 @@ public sealed class WordLyricsPresenter : Control
             : CreateMutedBrush(foreground);
         var activeBrush = IsBackgroundLine
             ? CreateOpacityBrush(foreground, BackgroundLineActiveOpacity)
-            : foreground;
+            : SungBrush ?? foreground;
         var motionSpace = GetMotionSpace();
         var rubySpace = GetRubySpace();
         // Content stack from top: [rubySpace][motionSpace][main text].
