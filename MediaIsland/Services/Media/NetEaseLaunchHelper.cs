@@ -16,6 +16,139 @@ public static class NetEaseLaunchHelper
 {
     private const string ExecutableName = "cloudmusic.exe";
 
+    /// <summary>桌面「精确同步」快捷方式的名字（不含 .lnk）。</summary>
+    private const string ShortcutName = "网易云音乐（精确同步）";
+
+    private static int CountProcesses()
+    {
+        try
+        {
+            var processes = Process.GetProcessesByName("cloudmusic");
+            var count = processes.Length;
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+
+            return count;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>开始菜单 + 任务栏固定区的快捷方式（不含桌面，桌面上的原快捷方式一律不动）。</summary>
+    private static IEnumerable<string> EnumerateInstalledShortcutFiles()
+    {
+        var roots = new List<string>();
+        void Add(Environment.SpecialFolder folder)
+        {
+            try
+            {
+                var path = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                {
+                    roots.Add(path);
+                }
+            }
+            catch (Exception)
+            {
+                // 忽略。
+            }
+        }
+
+        Add(Environment.SpecialFolder.Programs);
+        Add(Environment.SpecialFolder.CommonPrograms);
+
+        try
+        {
+            var pinned = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (!string.IsNullOrEmpty(pinned))
+            {
+                var taskbar = Path.Combine(pinned, "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar");
+                if (Directory.Exists(taskbar))
+                {
+                    roots.Add(taskbar);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // 忽略。
+        }
+
+        foreach (var root in roots)
+        {
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(root, "*.lnk", SearchOption.AllDirectories);
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static string? ReadLinkTarget(string link)
+    {
+        return WithShortcut(link, shortcut => shortcut.TargetPath as string);
+    }
+
+    private static string? ReadLinkArguments(string link)
+    {
+        return WithShortcut(link, shortcut => shortcut.Arguments as string);
+    }
+
+    private static bool WriteLinkArguments(string link, string? existingArguments, int port)
+    {
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType is null)
+            {
+                return false;
+            }
+
+            dynamic shell = Activator.CreateInstance(shellType)!;
+            dynamic shortcut = shell.CreateShortcut(link);
+            shortcut.Arguments = BuildDebugArguments(existingArguments ?? string.Empty, port);
+            shortcut.Save();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static T? WithShortcut<T>(string link, Func<dynamic, T?> read)
+    {
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType is null)
+            {
+                return default;
+            }
+
+            dynamic shell = Activator.CreateInstance(shellType)!;
+            dynamic shortcut = shell.CreateShortcut(link);
+            return read(shortcut);
+        }
+        catch (Exception)
+        {
+            return default;
+        }
+    }
+
     /// <summary>
     /// 找 cloudmusic.exe。顺序：正在运行的进程 → 快捷方式指向（只读） → 默认安装目录。
     /// 都找不到时返回 <see langword="null"/>，调用方应提示用户手动带参数启动。
@@ -147,6 +280,142 @@ public static class NetEaseLaunchHelper
         return true;
     }
 
+    /// <summary>
+    /// 网易云是不是开着、但**没有**带调试端口。设置页据此决定是直接启动还是提示用户重启。
+    /// </summary>
+    public static bool IsRunningWithoutDebugging(int port, out int processCount)
+    {
+        processCount = CountProcesses();
+        return processCount > 0 && !IsPortListening(port);
+    }
+
+    /// <summary>
+    /// 在桌面**新建**一个「网易云音乐（精确同步）」快捷方式（只写这一个文件，不动用户的任何原有快捷方式）。
+    /// 已存在同名快捷方式时直接更新它，这样重复点击不会堆出一堆副本。
+    /// </summary>
+    public static bool TryCreateShortcut(int port, out string shortcutPath, out string message)
+    {
+        shortcutPath = string.Empty;
+        if (!IsValidPort(port))
+        {
+            message = $"端口 {port} 不合法";
+            return false;
+        }
+
+        var exe = FindExecutable();
+        if (exe is null)
+        {
+            message = "没找到 cloudmusic.exe，无法创建快捷方式";
+            return false;
+        }
+
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop))
+        {
+            message = "找不到桌面目录，无法创建快捷方式";
+            return false;
+        }
+
+        var link = Path.Combine(desktop, $"{ShortcutName}.lnk");
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType is null)
+            {
+                message = "当前系统没有 WScript.Shell，无法创建快捷方式";
+                return false;
+            }
+
+            dynamic shell = Activator.CreateInstance(shellType)!;
+            dynamic shortcut = shell.CreateShortcut(link);
+            shortcut.TargetPath = exe;
+            shortcut.Arguments = BuildDebugArguments(string.Empty, port);
+            shortcut.WorkingDirectory = Path.GetDirectoryName(exe) ?? string.Empty;
+            shortcut.Description = "网易云音乐（带 DevTools 调试端口，供 MediaIsland 精确同步歌词）";
+            shortcut.Save();
+        }
+        catch (Exception ex)
+        {
+            message = $"创建快捷方式失败：{ex.Message}";
+            return false;
+        }
+
+        shortcutPath = link;
+        message = $"已在桌面创建「{ShortcutName}」，以后用它启动网易云就能精确同步";
+        return true;
+    }
+
+    /// <summary>
+    /// 给**开始菜单 / 任务栏**里指向 cloudmusic.exe 的快捷方式补上调试参数（桌面上的原有快捷方式不动）。
+    /// 改之前会把原文件备份成 <c>*.lnk.bak-yyyyMMdd-HHmmss</c>，随时可以还原。
+    /// </summary>
+    public static bool TryPatchInstalledShortcuts(int port, out string message)
+    {
+        if (!IsValidPort(port))
+        {
+            message = $"端口 {port} 不合法";
+            return false;
+        }
+
+        var patched = new List<string>();
+        var already = 0;
+        var failed = new List<string>();
+        foreach (var link in EnumerateInstalledShortcutFiles())
+        {
+            try
+            {
+                if (ReadLinkTarget(link) is not { } target || !IsExecutable(target))
+                {
+                    continue;
+                }
+
+                if (ShortcutNeedsPatch(ReadLinkArguments(link), port))
+                {
+                    var backup = $"{link}.bak-{DateTime.Now:yyyyMMdd-HHmmss}";
+                    File.Copy(link, backup, overwrite: true);
+                    if (!WriteLinkArguments(link, ReadLinkArguments(link), port))
+                    {
+                        failed.Add(Path.GetFileName(link));
+                        continue;
+                    }
+
+                    patched.Add(Path.GetFileName(link));
+                }
+                else
+                {
+                    already++;
+                }
+            }
+            catch (Exception)
+            {
+                failed.Add(Path.GetFileName(link));
+            }
+        }
+
+        if (patched.Count == 0 && already == 0 && failed.Count == 0)
+        {
+            message = "没找到指向 cloudmusic.exe 的开始菜单 / 任务栏快捷方式，可用「启动网易云（精确同步版）」或桌面快捷方式";
+            return false;
+        }
+
+        message = patched.Count > 0
+            ? $"已给 {patched.Count} 个快捷方式补上调试端口（原文件已备份）：{string.Join('、', patched)}"
+            : "开始菜单 / 任务栏的快捷方式本来就带调试端口参数，不用改";
+        if (failed.Count > 0)
+        {
+            message += $"；{failed.Count} 个没改成功（可能没有权限）：{string.Join('、', failed)}";
+        }
+
+        return patched.Count > 0 || failed.Count == 0;
+    }
+
+    /// <summary>快捷方式现有参数是否还需要补调试端口。</summary>
+    internal static bool ShortcutNeedsPatch(string? existingArguments, int port)
+    {
+        return existingArguments is null ||
+               !existingArguments.Contains($"--remote-debugging-port={port}", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>探测本机端口上有没有东西在监听（不做完整握手，只看 TCP 能否连上）。</summary>
     public static bool IsPortListening(int port)
     {
@@ -173,7 +442,13 @@ public static class NetEaseLaunchHelper
         var exe = FindExecutable();
         var executableText = exe is null ? "找不到 cloudmusic.exe" : $"网易云：{exe}";
         var portText = IsPortListening(port) ? $"调试端口 {port} 在监听" : $"调试端口 {port} 未打开";
-        return $"{executableText}；{portText}";
+        var count = CountProcesses();
+        var runningText = count == 0
+            ? "网易云没在运行"
+            : IsPortListening(port)
+                ? $"网易云正在运行（{count} 个进程，精确同步可用）"
+                : $"网易云正在运行（{count} 个进程）但没带调试端口，歌词只能推算";
+        return $"{runningText}；{executableText}；{portText}";
     }
 
     /// <summary>列出正在跑的网易云进程号，方便日志排查。</summary>
@@ -205,7 +480,7 @@ public static class NetEaseLaunchHelper
     /// <summary>
     /// 调试参数。已有参数（例如用户自己的 <c>--disable-gpu</c>）会保留在前面。
     /// </summary>
-    private static string BuildDebugArguments(string existingArguments, int port)
+    internal static string BuildDebugArguments(string existingArguments, int port)
     {
         var flags = $"--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}";
         return string.IsNullOrWhiteSpace(existingArguments)

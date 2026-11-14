@@ -32,6 +32,7 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     private string _sPlayerNextApiBaseUrl = LyricsSourceSettings.DefaultSPlayerNextApiBaseUrl;
     private bool _enableCdpTimeline = true;
     private string _cdpTimelineStatus = "未检测。";
+    private bool _isRestartPromptVisible;
     private string _sPlayerNextConnectionStatus = "默认 http://127.0.0.1:14558。";
     private string _lyricsCacheStatus = string.Empty;
     private string _currentLyricsSourceDisplay = "当前使用：暂无";
@@ -106,6 +107,15 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     {
         get => _cdpTimelineStatus;
         private set => SetProperty(ref _cdpTimelineStatus, value);
+    }
+
+    /// <summary>
+    /// 网易云已经以普通模式运行时，点「启动精确同步版」先问一句再重启，避免打断用户正在听的歌。
+    /// </summary>
+    public bool IsRestartPromptVisible
+    {
+        get => _isRestartPromptVisible;
+        private set => SetProperty(ref _isRestartPromptVisible, value);
     }
 
     public bool StripCreditLines
@@ -687,6 +697,7 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
         _maskRegexesText = LyricsCleanupRuleText.Format(Settings.Lyrics.MaskRegexes);
         _enableCdpTimeline = Settings.Lyrics.EnableCdpTimeline;
         OnPropertyChanged(nameof(EnableCdpTimeline));
+        IsRestartPromptVisible = false;
         CdpTimelineStatus = NetEaseLaunchHelper.DescribeState(NetEaseCdpTimelineReader.DefaultDebuggingPort);
         OnPropertyChanged(nameof(StripCreditLines));
         OnPropertyChanged(nameof(CreditKeywordsText));
@@ -806,6 +817,7 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
 
     private async void EnableCdpTimelineOnClick(object? sender, RoutedEventArgs e)
     {
+        IsRestartPromptVisible = false;
         var message = string.Empty;
         var ok = NetEaseLaunchHelper.TryRelaunchWithDebugging(
             NetEaseCdpTimelineReader.DefaultDebuggingPort,
@@ -819,12 +831,57 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
 
     private async void LaunchCdpTimelineOnClick(object? sender, RoutedEventArgs e)
     {
+        const int port = NetEaseCdpTimelineReader.DefaultDebuggingPort;
+        if (NetEaseLaunchHelper.IsRunningWithoutDebugging(port, out var processCount))
+        {
+            // 已经开着但没带端口：直接再启动一个只会把旧窗口叫到前台，必须重启才能开端口。
+            IsRestartPromptVisible = true;
+            CdpTimelineStatus = $"网易云正在以普通模式运行（{processCount} 个进程）。要以精确同步模式重启吗？正在播放的歌会从头开始。";
+            return;
+        }
+
+        IsRestartPromptVisible = false;
         var message = string.Empty;
-        NetEaseLaunchHelper.TryLaunchWithDebugging(
+        NetEaseLaunchHelper.TryLaunchWithDebugging(port, out message);
+        CdpTimelineStatus = message;
+        await RefreshCdpTimelineStatusAsync();
+    }
+
+    private async void ConfirmRestartCdpTimelineOnClick(object? sender, RoutedEventArgs e)
+    {
+        IsRestartPromptVisible = false;
+        var message = string.Empty;
+        var ok = NetEaseLaunchHelper.TryRelaunchWithDebugging(
             NetEaseCdpTimelineReader.DefaultDebuggingPort,
             out message);
         CdpTimelineStatus = message;
-        await RefreshCdpTimelineStatusAsync();
+        if (ok)
+        {
+            await RefreshCdpTimelineStatusAsync();
+        }
+    }
+
+    private void CancelRestartCdpTimelineOnClick(object? sender, RoutedEventArgs e)
+    {
+        IsRestartPromptVisible = false;
+        CdpTimelineStatus = "已取消重启，网易云仍是普通模式；歌词会继续用推算位置。";
+    }
+
+    private void CreateCdpShortcutOnClick(object? sender, RoutedEventArgs e)
+    {
+        var ok = NetEaseLaunchHelper.TryCreateShortcut(
+            NetEaseCdpTimelineReader.DefaultDebuggingPort,
+            out var shortcutPath,
+            out var message);
+        CdpTimelineStatus = ok ? $"{message}：{shortcutPath}" : message;
+    }
+
+    private void PatchCdpShortcutsOnClick(object? sender, RoutedEventArgs e)
+    {
+        var ok = NetEaseLaunchHelper.TryPatchInstalledShortcuts(
+            NetEaseCdpTimelineReader.DefaultDebuggingPort,
+            out var message);
+        CdpTimelineStatus = ok ? $"{message}（想还原就用同目录下的 .bak-* 备份文件）" : message;
     }
 
     /// <summary>
@@ -846,6 +903,7 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
             await Task.Delay(500);
         }
 
+        IsRestartPromptVisible = false;
         CdpTimelineStatus = NetEaseLaunchHelper.DescribeState(NetEaseCdpTimelineReader.DefaultDebuggingPort);
     }
 
