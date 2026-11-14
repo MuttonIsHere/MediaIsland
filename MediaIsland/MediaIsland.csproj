@@ -18,9 +18,9 @@
 		<AudioNativeCargoOutput>$(MSBuildProjectDirectory)\..\native\audio-ffi\target\release\mediaisland_audio.dll</AudioNativeCargoOutput>
 		<AudioNativeLibraryName>MediaIsland.Audio.dll</AudioNativeLibraryName>
 		<AudioNativeLibrary>$(MSBuildProjectDirectory)\..\native\audio-ffi\target\release\$(AudioNativeLibraryName)</AudioNativeLibrary>
-		<Version>1.1.2.1</Version>
-		<AssemblyVersion>1.1.2.1</AssemblyVersion>
-		<FileVersion>1.1.2.1</FileVersion>
+		<Version>1.2.0</Version>
+		<AssemblyVersion>1.2.0</AssemblyVersion>
+		<FileVersion>1.2.0</FileVersion>
 		<AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
 	</PropertyGroup>
 
