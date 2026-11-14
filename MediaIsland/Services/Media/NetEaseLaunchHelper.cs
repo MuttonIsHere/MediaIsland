@@ -109,6 +109,12 @@ public static class NetEaseLaunchHelper
 
     private static bool WriteLinkArguments(string link, string? existingArguments, int port)
     {
+        // WScript.Shell 只在 Windows 上存在（CA1416：显式守卫，避免平台分析器报警）。
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
         try
         {
             var shellType = Type.GetTypeFromProgID("WScript.Shell");
@@ -131,6 +137,12 @@ public static class NetEaseLaunchHelper
 
     private static T? WithShortcut<T>(string link, Func<dynamic, T?> read)
     {
+        // WScript.Shell 只在 Windows 上存在（CA1416：显式守卫，避免平台分析器报警）。
+        if (!OperatingSystem.IsWindows())
+        {
+            return default;
+        }
+
         try
         {
             var shellType = Type.GetTypeFromProgID("WScript.Shell");
@@ -306,6 +318,13 @@ public static class NetEaseLaunchHelper
         if (exe is null)
         {
             message = "没找到 cloudmusic.exe，无法创建快捷方式";
+            return false;
+        }
+
+        // 快捷方式靠 WScript.Shell 写，只有 Windows 有（CA1416）。
+        if (!OperatingSystem.IsWindows())
+        {
+            message = "只有 Windows 才能创建桌面快捷方式";
             return false;
         }
 
@@ -526,6 +545,12 @@ public static class NetEaseLaunchHelper
     /// </summary>
     private static string? FindExecutableFromShortcuts()
     {
+        // 读快捷方式要 WScript.Shell，只有 Windows 有（CA1416）。
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
         foreach (var link in EnumerateShortcutFiles())
         {
             try
