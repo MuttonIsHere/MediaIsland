@@ -1,5 +1,13 @@
 # MediaIsland
 
+> [!IMPORTANT]
+> ## 社区维护版已发布：v1.2.0
+>
+> 上游自 2026 年 8 月后停止更新。包含歌词同步修复的 **1.2.0** 版本现已发布，**推荐使用**：
+> [下载 `MediaIsland-1.2.0.cipx`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0)
+> · 上游 PR：[#47](https://github.com/bywhite0/MediaIsland/pull/47)
+> · 说明见 [dev/ci-v2 分支 README](https://github.com/MuttonIsHere/MediaIsland/tree/dev/ci-v2)
+
 MediaIsland 是一款 [ClassIsland](https://classisland.tech) 插件，用于在 ClassIsland 主界面上显示 Windows [SMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.systemmediatransportcontrols) 媒体信息。
 
 > [!IMPORTANT]
