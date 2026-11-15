@@ -2,6 +2,11 @@
 
 在 ClassIsland 主界面上显示 Windows [SMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.systemmediatransportcontrols) 媒体信息。
 
+> [!IMPORTANT]
+> **这是社区维护版 v1.2.0。** 上游 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 自 2026 年 8 月后停止更新，
+> 本版修复了歌词同步问题，下载：[Releases 1.2.0](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0)，
+> 上游 PR：[#47](https://github.com/bywhite0/MediaIsland/pull/47)。
+
 ## 组件
 
 **正在播放**
@@ -34,6 +39,14 @@
 - 可选把搜到的歌词缓存到本地，换播放器听同一首歌也能直接命中（默认开启，可在设置页清空）
 - 可把当前歌词「固定」到某首歌，之后始终优先使用它，不再受搜索结果变化影响
 - 可直接指定本地歌词文件（`.lrc` / `.qrc` / `.krc` / `.ttml`）作为某首歌的固定歌词
+
+### 1.2.0 新增 / 修复
+
+- 暂停 / 恢复后歌词位置不再回退
+- 单曲循环时歌词不再冻结
+- 网易云音乐精确同步（CEF DevTools 读取真实进度，逐秒对齐）
+- 逐字高亮（KTV 模式）取值修复
+- 全局时间轴偏移调节
 
 ## 要求
 

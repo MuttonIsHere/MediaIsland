@@ -1,10 +1,57 @@
 # MediaIsland
 
+> [!IMPORTANT]
+> ## 这是社区维护版（v1.2.0）
+>
+> 上游 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 自 2026 年 8 月后未再更新
+> （最后发版 `1.1.2.1` / 2026-08-05，最后提交 2026-09-26），
+> 相关修复已向上游提交 PR [#47](https://github.com/bywhite0/MediaIsland/pull/47)，但暂未被处理。
+>
+> 本仓库（`MuttonIsHere/MediaIsland`）在原作者代码基础上打包发布修复版，供需要的人直接使用。
+
+## 📦 下载安装
+
+| 方式 | 操作 |
+| --- | --- |
+| **直接下载** | [`MediaIsland-1.2.0.cipx`](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/MediaIsland-1.2.0.cipx)（约 1.6 MB） |
+| **安装** | ClassIsland → `设置 → 插件 → 从文件安装`，选择下载好的 `.cipx` |
+| **校验** | [SHA256 / MD5](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
+
+> [!TIP]
+> 已安装旧版（`1.1.x`）的用户，直接装这个 1.2.0 覆盖即可，设置会保留。
+
+## ✨ 1.2.0 修复内容
+
+- **暂停 / 恢复后歌词位置回退** —— 恢复播放时歌词不再跳回之前的位置
+- **单曲循环冻结** —— 单曲循环时歌词不再卡在第一行
+- **网易云音乐精确同步（新增）** —— 网易云不上报 SMTC 进度（时间轴一直为 0），
+  本版通过 CEF DevTools（默认端口 `9223`）读取页面里的真实播放时间，歌词**逐秒对齐**，
+  不再依赖「按进度条比例推算」
+- **逐字高亮（KTV 模式）** —— 修复多段歌词的取值错误
+- **全局时间轴偏移** —— 可在设置里统一微调提前/延后
+
+> [!WARNING]
+> 网易云精确同步**必须通过插件生成的按钮或快捷方式启动网易云**（带 `--remote-debugging-port=9223`）。
+> 用原快捷方式启动会**自动降级**为比例推算，歌词会慢慢漂移。
+> 详细说明见下方「网易云精确同步」一节。
+
+## 🔗 与上游的关系
+
+- 本仓库是 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 的 fork
+- 修复代码位于分支 `dev/ci-v2`（以及 `release/1.2.0`）
+- 上游 PR：<https://github.com/bywhite0/MediaIsland/pull/47>（4 commits，13 文件，+2445/−19，mergeable clean）
+- **若上游恢复维护并合入**，建议切回上游版本；本仓库届时会停止更新
+- 遇到问题欢迎在 [Issues](https://github.com/MuttonIsHere/MediaIsland/issues) 反馈
+
+---
+
+# 原版说明
+
 MediaIsland 是一款 [ClassIsland](https://classisland.tech) 插件，用于在 ClassIsland 主界面上显示 Windows [SMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.systemmediatransportcontrols) 媒体信息。
 
 > [!IMPORTANT]
 >
-> 本分支面向 ClassIsland 2.0 版本。请切换到 `master` 分支以查看面向 ClassIsland 1.x 的版本。
+> 本分支面向 ClassIsland 2.0 版本。ClassIsland 1.x 版本请看 `master` 分支。
 
 ## 组件
 
