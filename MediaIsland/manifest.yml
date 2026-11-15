@@ -2,12 +2,12 @@
 # YAML 教程：https://www.runoob.com/w3cnote/yaml-intro.html
 # 插件清单格式：https://docs.classisland.tech/zh-cn/latest/dev/plugins/create-project/#%E6%8F%92%E4%BB%B6%E6%B8%85%E5%8D%95%E6%96%87%E4%BB%B6
 
-id: bywhite.mediaisland
-name: MediaIsland
-description: 在 ClassIsland 显示 Windows SMTC 媒体信息。
+id: bywhite.mediaisland.ce
+name: MediaIsland CE
+description: 在 ClassIsland 显示 Windows SMTC 媒体信息（社区维护版，含歌词同步修复）。
 entranceAssembly: "MediaIsland.dll"
 url: https://github.com/MuttonIsHere/MediaIsland
-version: 1.2.0
+version: 1.2.1
 apiVersion: 2.2.0.0
 author: bywhite0
 readme: README.md
