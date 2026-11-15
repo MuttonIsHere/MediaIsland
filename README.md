@@ -1,26 +1,28 @@
 # MediaIsland
 
 > [!IMPORTANT]
-> ## 这是社区维护版（v1.2.0）
+> ## 这是社区维护版（v1.2.1 CE）
 >
 > 上游 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 自 2026 年 8 月后未再更新
 > （最后发版 `1.1.2.1` / 2026-08-05，最后提交 2026-09-26），
 > 相关修复已向上游提交 PR [#47](https://github.com/bywhite0/MediaIsland/pull/47)，但暂未被处理。
 >
 > 本仓库（`MuttonIsHere/MediaIsland`）在原作者代码基础上打包发布修复版，供需要的人直接使用。
+>
+> 📮 问题反馈请提到 [本仓库 Issues](https://github.com/MuttonIsHere/MediaIsland/issues)——上游已停更，请勿打扰上游维护者。
 
 ## 📦 下载安装
 
 | 方式 | 操作 |
 | --- | --- |
-| **直接下载** | [`MediaIsland-1.2.0.cipx`](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/MediaIsland-1.2.0.cipx)（约 1.6 MB） |
+| **直接下载** | [`MediaIsland.cipx`](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.1/MediaIsland.cipx)（约 1.6 MB） |
 | **安装** | ClassIsland → `设置 → 插件 → 从文件安装`，选择下载好的 `.cipx` |
-| **校验** | [SHA256 / MD5](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
+| **校验** | MD5 `1646FB1927AEAD24BED5531B1CED47ED`，SHA256 `7852BD0C6648E947D10D39A73C82EC2231BEE4F41A46B772C22713FB0B2F1776` |
 
 > [!TIP]
-> 已安装旧版（`1.1.x`）的用户，直接装这个 1.2.0 覆盖即可，设置会保留。
+> CE 版使用独立插件 id `bywhite.mediaisland.ce`，可与上游原版「MediaIsland」**并存**；但原版的设置不会自动继承，需要重新配置一次。
 
-## ✨ 1.2.0 修复内容
+## ✨ 1.2.1 修复内容（与 1.2.0 完全相同）
 
 - **暂停 / 恢复后歌词位置回退** —— 恢复播放时歌词不再跳回之前的位置
 - **单曲循环冻结** —— 单曲循环时歌词不再卡在第一行
@@ -38,7 +40,7 @@
 ## 🔗 与上游的关系
 
 - 本仓库是 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 的 fork
-- 修复代码位于分支 `dev/ci-v2`（以及 `release/1.2.0`）
+- 修复代码位于分支 `dev/ci-v2`（CE 版 1.2.1 打在这里）与 `release/1.2.0`
 - 上游 PR：<https://github.com/bywhite0/MediaIsland/pull/47>（4 commits，13 文件，+2445/−19，mergeable clean）
 - **若上游恢复维护并合入**，建议切回上游版本；本仓库届时会停止更新
 - 遇到问题欢迎在 [Issues](https://github.com/MuttonIsHere/MediaIsland/issues) 反馈
