@@ -1,0 +1,75 @@
+name: 问题反馈
+description: 报告 MediaIsland CE（社区维护版）的问题
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量把下面几项填全，这样定位问题的速度快很多。
+        如果只是「不显示歌词」，请先确认：播放器是否在播放、ClassIsland 是否以管理员权限运行、有没有装过旧版 `MediaIsland`（旧版 id 是 `bywhite.mediaisland`，与 CE 版是两个插件）。
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: 插件版本
+      description: 在 ClassIsland 插件列表里能看到，例如 1.2.1
+      placeholder: 1.2.1
+    validations:
+      required: true
+
+  - type: input
+    id: classisland_version
+    attributes:
+      label: ClassIsland 版本
+      placeholder: 2.0.0.2
+    validations:
+      required: true
+
+  - type: input
+    id: windows_version
+    attributes:
+      label: Windows 版本
+      placeholder: Windows 11 24H2
+    validations:
+      required: false
+
+  - type: dropdown
+    id: player
+    attributes:
+      label: 音乐播放器
+      options:
+        - 网易云音乐
+        - QQ 音乐
+        - Spotify
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 现象与复现步骤
+      description: 你看到的情况，以及怎么触发的
+      placeholder: |
+        1. 打开网易云音乐播放某首歌
+        2. 暂停后再继续
+        3. 歌词进度倒退到开头
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 可以把 ClassIsland 日志、插件日志、截图直接拖进来
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我使用的是最新版 CE 包（不是上游 1.1.x 旧版）
+          required: true
