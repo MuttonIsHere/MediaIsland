@@ -15,17 +15,31 @@
 
 | 你的 ClassIsland | 下载 | 说明 |
 | --- | --- | --- |
-| **2.1.0.1（官方稳定版）** ✅ 推荐 | [`v1.2.1-CE-CI2101`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101) | `net8.0` + `apiVersion 2.1.0.1`，**专为 2.1.0.1 编译** |
+| **2.1.0.1（官方稳定版）** ✅ 推荐 | [`v1.2.1-CE-CI2101-r2`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101-r2) | `net8.0` + `apiVersion 2.1.0.1`，**专为 2.1.0.1 编译** |
 | 2.2 预览版 / 自编译宿主 | [`1.2.0`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0) | `net10.0` + `apiVersion 2.2.0.0` |
 
 | 操作 | 步骤 |
 | --- | --- |
-| **安装** | ClassIsland → `设置 → 插件 → 从文件安装`，选择下载好的 `.cipx`，装完重启 |
-| **校验** | [v1.2.1-CE checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/v1.2.1-CE-CI2101/checksums-v1.2.1-CE.md)、[1.2.0 checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
+| **安装** | 把 `.cipx` 的后缀改成 `.zip`，解压到 `<ClassIsland 安装目录>\data\Plugins\bywhite.mediaisland.ce\`（`manifest.yml` 必须直接位于该目录下），然后重启 ClassIsland |
+| **校验** | SHA256 / MD5 见 [v1.2.1-CE-CI2101-r2 Release 说明](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101-r2)、[1.2.0 checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
 
 > [!TIP]
 > 已安装旧版（`1.1.x` / `1.2.0`）的用户，直接装新包覆盖即可，设置会保留；
 > 插件 `id` 是 `bywhite.mediaisland.ce`，不会出现两个 MediaIsland。
+
+> [!WARNING]
+> **别用「设置 → 插件 → 从文件安装」装这个包。**
+>
+> 如果机器上装了 MINI ClassIsland 集控增强组件（`org.miniopensource.miniclassisland.extendmanagement`），
+> 它的 `SelfProtectionService` 会用 `FileSystemWatcher` 盯着 `data\Cache\PluginPackages\*.cipx`，
+> 并调用 `CipxPackageSshVerifier.InspectAndVerifyCipxPackage()` 验签。
+> 只要读取这个包时抛异常（最常见是安装流程正占用文件，`IOException: being used by another process`），
+> 该方法的 `catch` 会**无条件**返回「这是一枚待验签的包」，调用方于是 `File.Delete` 把它删掉。
+>
+> 紧接着 ClassIsland 的安装器解压失败，而这条失败只写进 Console、**不进日志文件**，
+> 于是表现为：**插件列表里完全没有、日志里连一行报错都没有**，俗称隐身。
+>
+> 手动解压不经过这个暂存目录，也就完全绕开了它。
 
 > [!IMPORTANT]
 > **为什么单独出了一个 2.1.0.1 兼容版？**
@@ -55,7 +69,8 @@
 
 - 本仓库是 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 的 fork
 - 修复代码位于分支 `dev/ci-v2`（以及 `release/1.2.0`）
-- ClassIsland 2.1.0.1 兼容适配位于分支 `compat/classisland-2.1.0.1`（tag `v1.2.1-CE-CI2101`）
+- ClassIsland 2.1.0.1 兼容适配位于分支 `compat/classisland-2.1.0.1`（tag `v1.2.1-CE-CI2101-r2`）
+- 打包用 `Tools/Pack-Cipx.ps1`（会先清掉 `bin\...\publish\` 残留，避免旧 DLL 被一起压进包）
 - 上游 PR：<https://github.com/bywhite0/MediaIsland/pull/47>（4 commits，13 文件，+2445/−19，mergeable clean）
 - **若上游恢复维护并合入**，建议切回上游版本；本仓库届时会停止更新
 - 遇到问题欢迎在 [Issues](https://github.com/MuttonIsHere/MediaIsland/issues) 反馈

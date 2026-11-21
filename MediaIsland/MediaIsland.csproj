@@ -18,9 +18,12 @@
 		<AudioNativeCargoOutput>$(MSBuildProjectDirectory)\..\native\audio-ffi\target\release\mediaisland_audio.dll</AudioNativeCargoOutput>
 		<AudioNativeLibraryName>MediaIsland.Audio.dll</AudioNativeLibraryName>
 		<AudioNativeLibrary>$(MSBuildProjectDirectory)\..\native\audio-ffi\target\release\$(AudioNativeLibraryName)</AudioNativeLibrary>
-		<Version>1.2.0</Version>
-		<AssemblyVersion>1.2.0</AssemblyVersion>
-		<FileVersion>1.2.0</FileVersion>
+		<!-- Keep in lockstep with manifest.yml: the host displays the manifest
+		     version, but a stale assembly version makes crash reports and
+		     `PluginStartupLog` disagree with what users see in the plugin list. -->
+		<Version>1.2.1</Version>
+		<AssemblyVersion>1.2.1</AssemblyVersion>
+		<FileVersion>1.2.1</FileVersion>
 		<AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
 	</PropertyGroup>
 
@@ -104,6 +107,13 @@
 	        Condition="'$(OS)' == 'Windows_NT' And '$(PlatformTarget)' == 'x64' And Exists('$(AudioNativeManifest)')">
 		<Exec Command="cargo build --manifest-path &quot;$(AudioNativeManifest)&quot; --release" />
 		<Copy SourceFiles="$(AudioNativeCargoOutput)" DestinationFiles="$(AudioNativeLibrary)" SkipUnchangedFiles="true" />
+	</Target>
+	<!-- CreateCipx 会把 $(OutputPath) 整个压成包，而 `dotnet publish` 会往
+	     bin\<配置>\<TFM>\publish\ 再写一份。下一次打包时这份残留（里面还躺着一份旧的
+	     MediaIsland.dll）会被一起压进 .cipx：包体积翻倍，还同时带着两个版本的插件。
+	     打第二个包之前先把它清掉。 -->
+	<Target Name="CleanStalePublishDir" BeforeTargets="CreateCipx" Condition="Exists('$(OutputPath)publish')">
+		<RemoveDir Directories="$(OutputPath)publish" />
 	</Target>
 
 </Project>

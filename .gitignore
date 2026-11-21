@@ -364,3 +364,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# 打包产物（由 Tools/Pack-Cipx.ps1 生成，不进版本库）
+MediaIsland/cipx/

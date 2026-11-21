@@ -2,7 +2,11 @@
 # YAML 教程：https://www.runoob.com/w3cnote/yaml-intro.html
 # 插件清单格式：https://docs.classisland.tech/zh-cn/latest/dev/plugins/create-project/#%E6%8F%92%E4%BB%B6%E6%B8%85%E5%8D%95%E6%96%87%E4%BB%B6
 
-id: bywhite.mediaisland
+# 这是 CE（社区维护）分支的清单，id 固定为 bywhite.mediaisland.ce：
+# 与上游 bywhite.mediaisland 并存，不会互相覆盖；设置目录也因此是
+# data\Config\Plugins\bywhite.mediaisland.ce\。
+# 打包时无需再改包内 id —— 改过 id 的包里若忘同步，会装出两份 MediaIsland。
+id: bywhite.mediaisland.ce
 name: MediaIsland
 description: 在 ClassIsland 显示 Windows SMTC 媒体信息。
 entranceAssembly: "MediaIsland.dll"
