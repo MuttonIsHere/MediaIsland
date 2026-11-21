@@ -1,7 +1,7 @@
 # MediaIsland
 
 > [!IMPORTANT]
-> ## 这是社区维护版（v1.2.0）
+> ## 这是社区维护版（v1.2.2）
 >
 > 上游 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 自 2026 年 8 月后未再更新
 > （最后发版 `1.1.2.1` / 2026-08-05，最后提交 2026-09-26），
@@ -15,13 +15,13 @@
 
 | 你的 ClassIsland | 下载 | 说明 |
 | --- | --- | --- |
-| **2.1.0.1（官方稳定版）** ✅ 推荐 | [`v1.2.1-CE-CI2101-r2`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101-r2) | `net8.0` + `apiVersion 2.1.0.1`，**专为 2.1.0.1 编译** |
+| **2.1.0.1（官方稳定版）** ✅ 推荐 | [`v1.2.2-CE-CI2101`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.2-CE-CI2101) | `net8.0` + `apiVersion 2.1.0.1`，**专为 2.1.0.1 编译** |
 | 2.2 预览版 / 自编译宿主 | [`1.2.0`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0) | `net10.0` + `apiVersion 2.2.0.0` |
 
 | 操作 | 步骤 |
 | --- | --- |
 | **安装** | 把 `.cipx` 的后缀改成 `.zip`，解压到 `<ClassIsland 安装目录>\data\Plugins\bywhite.mediaisland.ce\`（`manifest.yml` 必须直接位于该目录下），然后重启 ClassIsland |
-| **校验** | SHA256 / MD5 见 [v1.2.1-CE-CI2101-r2 Release 说明](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101-r2)、[1.2.0 checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
+| **校验** | SHA256 / MD5 见 [v1.2.2-CE-CI2101 Release 说明](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.2-CE-CI2101)、[1.2.0 checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
 
 > [!TIP]
 > 已安装旧版（`1.1.x` / `1.2.0`）的用户，直接装新包覆盖即可，设置会保留；
@@ -69,7 +69,7 @@
 
 - 本仓库是 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 的 fork
 - 修复代码位于分支 `dev/ci-v2`（以及 `release/1.2.0`）
-- ClassIsland 2.1.0.1 兼容适配位于分支 `compat/classisland-2.1.0.1`（tag `v1.2.1-CE-CI2101-r2`）
+- ClassIsland 2.1.0.1 兼容适配位于分支 `compat/classisland-2.1.0.1`（tag `v1.2.2-CE-CI2101`）
 - 打包用 `Tools/Pack-Cipx.ps1`（会先清掉 `bin\...\publish\` 残留，避免旧 DLL 被一起压进包）
 - 上游 PR：<https://github.com/bywhite0/MediaIsland/pull/47>（4 commits，13 文件，+2445/−19，mergeable clean）
 - **若上游恢复维护并合入**，建议切回上游版本；本仓库届时会停止更新

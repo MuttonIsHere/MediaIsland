@@ -320,6 +320,11 @@ namespace WindowsMediaController
                 try
                 {
                     var playbackInfo = controlSession.GetPlaybackInfo();
+                    if (playbackInfo == null)
+                    {
+                        // 会话正在销毁时 WinRT 会返回 null，解引用就是 NRE。
+                        return;
+                    }
 
                     if (playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed)
                     {
@@ -400,6 +405,11 @@ namespace WindowsMediaController
                 try
                 {
                     var timelineProperties = sender.GetTimelineProperties();
+                    if (timelineProperties == null)
+                    {
+                        // 同上：会话销毁中可能拿到 null，别把 null 抛给下游回调。
+                        return;
+                    }
 
                     try
                     {

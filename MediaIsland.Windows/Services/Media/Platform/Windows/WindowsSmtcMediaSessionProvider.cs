@@ -231,6 +231,9 @@ public sealed class WindowsSmtcMediaSessionProvider(
             var controlSession = session.ControlSession;
             var sourceApp = controlSession.SourceAppUserModelId;
             var mediaProperties = await TryGetMediaPropertiesAsync(controlSession, sourceApp);
+            // WinRT 的这两个接口在会话正在销毁时会返回 null（QQ 音乐退出时踩到过：
+            // NullReferenceException 被外层 catch 吞掉，整条快照随即被丢弃）。
+            // 时间轴退回零、播放状态退回 Unknown，标题与封面照常带出去。
             var timelineProperties = controlSession.GetTimelineProperties();
             var playbackInfo = controlSession.GetPlaybackInfo();
             var thumbnailReference = mediaProperties?.Thumbnail;
@@ -252,11 +255,13 @@ public sealed class WindowsSmtcMediaSessionProvider(
                 mediaProperties?.Title,
                 mediaProperties?.Artist,
                 mediaProperties?.AlbumTitle,
-                timelineProperties.Position,
-                timelineProperties.EndTime,
+                timelineProperties?.Position ?? TimeSpan.Zero,
+                timelineProperties?.EndTime ?? TimeSpan.Zero,
                 new MediaPlaybackInfo(
-                    MapPlaybackState(playbackInfo.PlaybackStatus),
-                    playbackInfo.PlaybackRate),
+                    playbackInfo == null
+                        ? MediaPlaybackState.Unknown
+                        : MapPlaybackState(playbackInfo.PlaybackStatus),
+                    playbackInfo?.PlaybackRate),
                 thumbnail);
         }
         catch (OperationCanceledException)

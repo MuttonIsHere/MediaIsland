@@ -1,9 +1,8 @@
-# MediaIsland CE v1.2.1（ClassIsland 2.1.0.1 兼容版）
+# MediaIsland CE v1.2.2（ClassIsland 2.1.0.1 兼容版）
 
-> `compat/classisland-2.1.0.1` 分支的重新打包版，替换 `v1.2.1-CE-CI2101`。
+> 取代 `v1.2.1-CE-CI2101-r2` 与 `v1.2.1-CE-CI2101`。装过 r2 的可以直接覆盖，设置不变。
 >
-> 上一版的 `.cipx` 里混进了 `publish/` 子目录，还带着一份更早构建的 `MediaIsland.dll`
-> （整包 29 个条目、3.2 MB）。本版修正为干净的 16 个条目。
+> 1.2.1 系列修的是「装不上 / 组件不显示」；1.2.2 修的是运行期崩溃点和打包工具链本身。
 
 ## ⚠️ 安装方式：手动解压，不要用「从文件安装」
 
@@ -27,17 +26,32 @@
 装好的判据（日志里能看到）：
 
 ```
-此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.1),…
-MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.1 已加载
+此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.2),…
+MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.2 已加载
 ```
 
 ## 本版改了什么
 
-- **打包**：`CleanStalePublishDir` 目标会在 `CreateCipx` 之前清掉 `bin\<配置>\<TFM>\publish\`，
-  避免上一轮 `dotnet publish` 的残留被一起压进包（这正是上一版包里出现两份 DLL 的原因）。
-- **插件 id** 固定为 `bywhite.mediaisland.ce`，与安装目录、设置目录一致，不会再装出两份 MediaIsland。
-- **版本号**对齐到 1.2.1（此前 `manifest.yml` 是 1.2.1、程序集还是 1.2.0）。
-- 新增 `Tools/Pack-Cipx.ps1` 打包脚本，打包后直接打印 SHA256 / MD5。
+**修：QQ 音乐退出时抛 `NullReferenceException`，整条媒体快照被丢弃**
+
+`WindowsSmtcMediaSessionProvider.BuildSnapshotAsync` 直接解引用
+`controlSession.GetTimelineProperties()` / `GetPlaybackInfo()` 的返回值。WinRT 在会话销毁过程中
+会返回 `null`，于是抛出 NRE 被外层 catch 吞掉，日志里留下一条带堆栈的告警，那一下媒体信息闪断。
+现在时间轴退回零、播放状态退回 `Unknown`，**标题和封面照常显示**；`WindowsMediaController` 里同类的
+两处解引用也补了空值防护（同仓库 `WindowsSmtcMediaPlaybackController` 早就用了 `?.`，只是这三处漏了）。
+
+**修：打包脚本两个会误导人的问题**
+
+- `Tools/Pack-Cipx.ps1` 没检查 `dotnet publish` 的退出码。原生进程失败只体现在 `$LASTEXITCODE`，
+  `$ErrorActionPreference` 管不到，于是构建失败时脚本会拿上一轮的旧包算哈希、汇报「打包成功」。
+- 脚本是不带 BOM 的 UTF-8 且含中文，PowerShell 5.1 会按 ANSI 解码，**直接报语法错误、跑不起来**。已改存 UTF-8 BOM。
+
+**修：`checksums.md` 只有 MD5，但说明里写了「SHA256 / MD5 见附件」**
+
+现在脚本会把 SHA256 一并写进 `checksums.md`，附件与说明一致。
+
+**自带**：`CleanStalePublishDir` 会在 `CreateCipx` 之前清掉 `bin\<配置>\<TFM>\publish\`，
+避免上一轮 `dotnet publish` 的残留被一起压进包（1.2.1 的首个包就是因此从 16 个条目膨胀到 29 个）。
 
 ## 校验
 
