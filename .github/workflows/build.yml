@@ -60,7 +60,7 @@ jobs:
         uses: ncipollo/release-action@v1
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
-          artifacts: "./MediaIsland/cipx/*.cipx"
-          draft: true
-          bodyFile: ./MediaIsland/cipx/checksums.md
+          artifacts: "./MediaIsland/cipx/*.cipx,./MediaIsland/cipx/checksums.md"
+          draft: false
+          bodyFile: ./docs/release-notes.md
           token: ${{ secrets.GITHUB_TOKEN }}
