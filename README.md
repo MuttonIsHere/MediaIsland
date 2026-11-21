@@ -11,14 +11,30 @@
 
 ## 📦 下载安装
 
-| 方式 | 操作 |
+先确认你的 ClassIsland 版本（`设置 → 关于`），再选对应的包：
+
+| 你的 ClassIsland | 下载 | 说明 |
+| --- | --- | --- |
+| **2.1.0.1（官方稳定版）** ✅ 推荐 | [`v1.2.1-CE-CI2101`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/v1.2.1-CE-CI2101) | `net8.0` + `apiVersion 2.1.0.1`，**专为 2.1.0.1 编译** |
+| 2.2 预览版 / 自编译宿主 | [`1.2.0`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0) | `net10.0` + `apiVersion 2.2.0.0` |
+
+| 操作 | 步骤 |
 | --- | --- |
-| **直接下载** | [`MediaIsland-1.2.0.cipx`](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/MediaIsland-1.2.0.cipx)（约 1.6 MB） |
-| **安装** | ClassIsland → `设置 → 插件 → 从文件安装`，选择下载好的 `.cipx` |
-| **校验** | [SHA256 / MD5](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
+| **安装** | ClassIsland → `设置 → 插件 → 从文件安装`，选择下载好的 `.cipx`，装完重启 |
+| **校验** | [v1.2.1-CE checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/v1.2.1-CE-CI2101/checksums-v1.2.1-CE.md)、[1.2.0 checksums](https://github.com/MuttonIsHere/MediaIsland/releases/download/1.2.0/checksums.md) |
 
 > [!TIP]
-> 已安装旧版（`1.1.x`）的用户，直接装这个 1.2.0 覆盖即可，设置会保留。
+> 已安装旧版（`1.1.x` / `1.2.0`）的用户，直接装新包覆盖即可，设置会保留；
+> 插件 `id` 是 `bywhite.mediaisland.ce`，不会出现两个 MediaIsland。
+
+> [!IMPORTANT]
+> **为什么单独出了一个 2.1.0.1 兼容版？**
+> 1.2.0 面向 `net10.0` + `PluginSdk 2.1.1.1` + `apiVersion 2.2.0.0`，官方稳定版 2.1.0.1（`net8.0`）会直接拒载。
+> 修好清单后还有个更隐蔽的坑：`.axaml` 从未被编译进 DLL（插件 SDK 只是传递引用 Avalonia，
+> 构建目标没导入）→ 每个组件在 `InitializeComponent()` 抛 `No precompiled XAML found` 并被宿主吞掉，
+> 表现为**组件完全不显示、设置页打不开**。
+> 2.1.0.1 兼容版补上直接 Avalonia 引用，并把 `FASettingsExpander`→`SettingsExpander`、
+> `PlaceholderText`→`Watermark`、`SKSamplingOptions`→`SKFilterQuality` 等 API 降级改好。
 
 ## ✨ 1.2.0 修复内容
 
@@ -39,6 +55,7 @@
 
 - 本仓库是 [bywhite0/MediaIsland](https://github.com/bywhite0/MediaIsland) 的 fork
 - 修复代码位于分支 `dev/ci-v2`（以及 `release/1.2.0`）
+- ClassIsland 2.1.0.1 兼容适配位于分支 `compat/classisland-2.1.0.1`（tag `v1.2.1-CE-CI2101`）
 - 上游 PR：<https://github.com/bywhite0/MediaIsland/pull/47>（4 commits，13 文件，+2445/−19，mergeable clean）
 - **若上游恢复维护并合入**，建议切回上游版本；本仓库届时会停止更新
 - 遇到问题欢迎在 [Issues](https://github.com/MuttonIsHere/MediaIsland/issues) 反馈
