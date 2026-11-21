@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Avalonia.Media.Imaging;
 using SkiaSharp;
 
@@ -49,7 +49,7 @@ namespace MediaIsland.Helpers
                     int newWidth = (int)(currentBitmap.Width * ratio);
                     int newHeight = (int)(currentBitmap.Height * ratio);
 
-                    var resized = currentBitmap.Resize(new SKImageInfo(newWidth, newHeight), new SKSamplingOptions (SKCubicResampler.Mitchell));
+                    var resized = currentBitmap.Resize(new SKImageInfo(newWidth, newHeight), SKFilterQuality.High);
                     if (resized != null)
                     {
                         if (isNewBitmap) currentBitmap.Dispose();

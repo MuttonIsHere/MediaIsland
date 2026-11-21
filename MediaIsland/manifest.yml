@@ -7,8 +7,8 @@ name: MediaIsland
 description: 在 ClassIsland 显示 Windows SMTC 媒体信息。
 entranceAssembly: "MediaIsland.dll"
 url: https://github.com/MuttonIsHere/MediaIsland
-version: 1.2.0
-apiVersion: 2.2.0.0
+version: 1.2.1
+apiVersion: 2.1.0.1
 author: bywhite0
 readme: README.md
 icon: icon.png

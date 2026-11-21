@@ -41,7 +41,8 @@ public static class MediaLinkThumbnail
         }
 
         using var buffer = new MemoryStream();
-        bitmap.Save(buffer, PngBitmapEncoderOptions.Default);
+        // Avalonia 11.3 的 Bitmap.Save(Stream) 就是 PNG 编码；PNG 选项重载是 12.x 才有的。
+        bitmap.Save(buffer);
         if (buffer.Length == 0 || buffer.Length > MaxBytes)
         {
             return null;

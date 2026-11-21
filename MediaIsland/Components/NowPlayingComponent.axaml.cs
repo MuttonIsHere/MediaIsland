@@ -47,7 +47,7 @@ namespace MediaIsland.Components
             IMediaSourceDisplayService mediaSourceDisplayService,
             IEffectiveMediaSource? effectiveSource = null)
         {
-            InitializeComponent();
+        InitializeComponent();
             Logger = logger;
             _mediaService = mediaService;
             _mediaSourceDisplayService = mediaSourceDisplayService;

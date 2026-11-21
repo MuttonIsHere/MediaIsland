@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using ClassIsland.Core.Abstractions.Controls;
 using MediaIsland.Services.Audio.Visualization;
 
@@ -29,8 +30,18 @@ public partial class AudioSpectrumComponentSettings : ComponentBase<AudioSpectru
     private void ApplyVisibility()
     {
         var applicable = AudioSpectrumConfig.ApplicableSettings(Settings.Style);
-        BandCountRow.IsVisible = applicable.Contains(AudioVisualSetting.BandCount);
-        BarGapRow.IsVisible = applicable.Contains(AudioVisualSetting.BarGap);
-        MirrorRow.IsVisible = applicable.Contains(AudioVisualSetting.Mirror);
+        SetRowVisible("BandCountRow", applicable.Contains(AudioVisualSetting.BandCount));
+        SetRowVisible("BarGapRow", applicable.Contains(AudioVisualSetting.BarGap));
+        SetRowVisible("MirrorRow", applicable.Contains(AudioVisualSetting.Mirror));
+    }
+
+    // 这里按名字查找而不是直接用 x:Name 生成字段：字段生成本身依赖 XAML 编译器版本，
+    // 而设置页要同时兼容宿主自带的老 Avalonia。名字本身仍是 axaml 里的 x:Name。
+    private void SetRowVisible(string name, bool isVisible)
+    {
+        if (this.FindControl<Control>(name) is { } row)
+        {
+            row.IsVisible = isVisible;
+        }
     }
 }

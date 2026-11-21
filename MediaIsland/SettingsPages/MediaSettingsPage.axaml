@@ -83,7 +83,7 @@
                 </Grid>
             </Border>
             <ci:IconText Glyph="&#xEDBA;" Text="播放源" Margin="0 16 0 8" />
-            <controls:FASettingsExpander IconSource="{ci:LucideIconSource &#xE561;}"
+            <controls:SettingsExpander IconSource="{ci:LucideIconSource &#xE561;}"
                                          Header="播放源列表"
                                          Description="插件监听的播放源列表，可控制是否显示来自特定播放源的信息、是否搜索歌词，并可自定义显示名称与图标。修改后点「保存」，重载组件后生效。">
                 <StackPanel Orientation="Vertical">
@@ -129,7 +129,7 @@
                                         <TextBox Margin="4,0"
                                                  VerticalAlignment="Center"
                                                  Text="{Binding CustomDisplayName, Mode=TwoWay}"
-                                                 PlaceholderText="留空时自动识别"
+                                                 Watermark="留空时自动识别"
                                                  LostFocus="CustomDisplayNameTextBoxOnLostFocus" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -205,22 +205,22 @@
                         </Button>
                     </StackPanel>
                 </StackPanel>
-            </controls:FASettingsExpander>
-            <controls:FASettingsExpander IconSource="{ci:LucideIconSource &#xE1C0;}"
+            </controls:SettingsExpander>
+            <controls:SettingsExpander IconSource="{ci:LucideIconSource &#xE1C0;}"
                                          Header="移除封面的 Spotify 水印"
                                          Description="部分版本的 Spotify 桌面版会在传给 SMTC 的封面下方加入其商标，如果你在插件呈现的封面上看到了，可以打开这个开关。">
-                <controls:FASettingsExpander.Footer>
+                <controls:SettingsExpander.Footer>
                     <ToggleSwitch IsChecked="{Binding Settings.IsCutSpotifyTrademarkEnabled, Mode=TwoWay}" />
-                </controls:FASettingsExpander.Footer>
-            </controls:FASettingsExpander>
+                </controls:SettingsExpander.Footer>
+            </controls:SettingsExpander>
             <ci:IconText Glyph="&#xEAEF;" Text="隐私" Margin="0 16 0 8" />
-            <controls:FASettingsExpander IconSource="{ci:LucideIconSource &#xE2A5;}"
+            <controls:SettingsExpander IconSource="{ci:LucideIconSource &#xE2A5;}"
                                          Header="匿名使用情况分析"
                                          Description="本插件使用 Sentry 收集与本插件相关的使用情况与错误信息，以帮助改善本插件，相关信息将被匿名上传。此功能不会收集您的个人信息。">
-                <controls:FASettingsExpander.Footer>
+                <controls:SettingsExpander.Footer>
                     <ToggleSwitch IsChecked="{Binding Settings.IsTodayEatSentry, Mode=TwoWay}" />
-                </controls:FASettingsExpander.Footer>
-            </controls:FASettingsExpander>
+                </controls:SettingsExpander.Footer>
+            </controls:SettingsExpander>
         </StackPanel>
     </ScrollViewer>
 </local:MediaIslandSettingsPage>
