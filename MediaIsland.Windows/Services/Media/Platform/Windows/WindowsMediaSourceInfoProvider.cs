@@ -75,6 +75,7 @@ public sealed class WindowsMediaSourceInfoProvider(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        logger.LogDebug("[媒体] 来源进程匹配：AUMID={SourceApp} 命中进程={ProcessPath}", sourceApp, processPath);
         var displayName = ResolveExecutableDisplayName(processPath, sourceApp);
         var icon = await LoadFileThumbnailAsync(processPath, cancellationToken);
         return new MediaSourceInfo(sourceApp, displayName, icon, MediaSourceInfoKind.Platform);
@@ -139,7 +140,8 @@ public sealed class WindowsMediaSourceInfoProvider(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return WindowsShellIconHelper.GetFileIcon(filePath, logger);
+        // SHGetFileInfo 是同步 Shell 调用，冷缓存或网络盘上会卡上几百毫秒，别占着 UI 线程。
+        return await Task.Run(() => WindowsShellIconHelper.GetFileIcon(filePath, logger), cancellationToken);
     }
 
     private static async Task<Bitmap?> LoadBitmapFileAsync(

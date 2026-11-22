@@ -10,6 +10,9 @@ public sealed class WindowsSmtcMediaSessionProvider(
 {
     private readonly MediaManager _mediaManager = new();
 
+    /// <summary>上一次打过日志的 AUMID，只在来源变化时打印，避免轮询刷屏。</summary>
+    private string? _lastLoggedSourceApp;
+
     public event EventHandler<MediaSessionSnapshotEventArgs>? FocusedSessionChanged;
 
     public event EventHandler<MediaSessionSnapshotEventArgs>? MediaPropertiesChanged;
@@ -230,6 +233,15 @@ public sealed class WindowsSmtcMediaSessionProvider(
             cancellationToken.ThrowIfCancellationRequested();
             var controlSession = session.ControlSession;
             var sourceApp = controlSession.SourceAppUserModelId;
+
+            // 来源变化时打印 Windows 给的原始 AUMID：显示名是插件自己解析出来的，
+            // 只有这个原值能证明「到底是谁的会话」。
+            if (!string.Equals(_lastLoggedSourceApp, sourceApp, StringComparison.Ordinal))
+            {
+                _lastLoggedSourceApp = sourceApp;
+                logger.LogInformation("[媒体:SMTC] 会话来源（原始 AUMID）={SourceApp}", sourceApp);
+            }
+
             var mediaProperties = await TryGetMediaPropertiesAsync(controlSession, sourceApp);
             // WinRT 的这两个接口在会话正在销毁时会返回 null（QQ 音乐退出时踩到过：
             // NullReferenceException 被外层 catch 吞掉，整条快照随即被丢弃）。

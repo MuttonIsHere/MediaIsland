@@ -818,10 +818,15 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     private async void EnableCdpTimelineOnClick(object? sender, RoutedEventArgs e)
     {
         IsRestartPromptVisible = false;
-        var message = string.Empty;
-        var ok = NetEaseLaunchHelper.TryRelaunchWithDebugging(
-            NetEaseCdpTimelineReader.DefaultDebuggingPort,
-            out message);
+        // 结束进程 → 等旧进程退出（1.5s）→ 带参数启动，全是同步阻塞调用。
+        // 直接在这里跑会把设置页冻住，扔线程池。
+        var (ok, message) = await Task.Run(() =>
+        {
+            var succeeded = NetEaseLaunchHelper.TryRelaunchWithDebugging(
+                NetEaseCdpTimelineReader.DefaultDebuggingPort,
+                out var result);
+            return (succeeded, result);
+        });
         CdpTimelineStatus = message;
         if (ok)
         {
@@ -832,7 +837,14 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     private async void LaunchCdpTimelineOnClick(object? sender, RoutedEventArgs e)
     {
         const int port = NetEaseCdpTimelineReader.DefaultDebuggingPort;
-        if (NetEaseLaunchHelper.IsRunningWithoutDebugging(port, out var processCount))
+        // 进程扫描要遍历全部进程，放到线程池跑，按钮才不会有按下延迟。
+        var (runningWithoutDebugging, processCount) = await Task.Run(() =>
+        {
+            var running = NetEaseLaunchHelper.IsRunningWithoutDebugging(port, out var count);
+            return (running, count);
+        });
+
+        if (runningWithoutDebugging)
         {
             // 已经开着但没带端口：直接再启动一个只会把旧窗口叫到前台，必须重启才能开端口。
             IsRestartPromptVisible = true;
@@ -841,8 +853,11 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
         }
 
         IsRestartPromptVisible = false;
-        var message = string.Empty;
-        NetEaseLaunchHelper.TryLaunchWithDebugging(port, out message);
+        var message = await Task.Run(() =>
+        {
+            NetEaseLaunchHelper.TryLaunchWithDebugging(port, out var result);
+            return result;
+        });
         CdpTimelineStatus = message;
         await RefreshCdpTimelineStatusAsync();
     }
@@ -850,10 +865,13 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
     private async void ConfirmRestartCdpTimelineOnClick(object? sender, RoutedEventArgs e)
     {
         IsRestartPromptVisible = false;
-        var message = string.Empty;
-        var ok = NetEaseLaunchHelper.TryRelaunchWithDebugging(
-            NetEaseCdpTimelineReader.DefaultDebuggingPort,
-            out message);
+        var (ok, message) = await Task.Run(() =>
+        {
+            var succeeded = NetEaseLaunchHelper.TryRelaunchWithDebugging(
+                NetEaseCdpTimelineReader.DefaultDebuggingPort,
+                out var result);
+            return (succeeded, result);
+        });
         CdpTimelineStatus = message;
         if (ok)
         {
@@ -867,20 +885,29 @@ public partial class LyricsSettingsPage : MediaIslandSettingsPage
         CdpTimelineStatus = "已取消重启，网易云仍是普通模式；歌词会继续用推算位置。";
     }
 
-    private void CreateCdpShortcutOnClick(object? sender, RoutedEventArgs e)
+    private async void CreateCdpShortcutOnClick(object? sender, RoutedEventArgs e)
     {
-        var ok = NetEaseLaunchHelper.TryCreateShortcut(
-            NetEaseCdpTimelineReader.DefaultDebuggingPort,
-            out var shortcutPath,
-            out var message);
+        // 创建 .lnk 要走 Shell COM，放到线程池，避免设置页闪一下。
+        var (ok, shortcutPath, message) = await Task.Run(() =>
+        {
+            var succeeded = NetEaseLaunchHelper.TryCreateShortcut(
+                NetEaseCdpTimelineReader.DefaultDebuggingPort,
+                out var path,
+                out var result);
+            return (succeeded, path, result);
+        });
         CdpTimelineStatus = ok ? $"{message}：{shortcutPath}" : message;
     }
 
-    private void PatchCdpShortcutsOnClick(object? sender, RoutedEventArgs e)
+    private async void PatchCdpShortcutsOnClick(object? sender, RoutedEventArgs e)
     {
-        var ok = NetEaseLaunchHelper.TryPatchInstalledShortcuts(
-            NetEaseCdpTimelineReader.DefaultDebuggingPort,
-            out var message);
+        var (ok, message) = await Task.Run(() =>
+        {
+            var succeeded = NetEaseLaunchHelper.TryPatchInstalledShortcuts(
+                NetEaseCdpTimelineReader.DefaultDebuggingPort,
+                out var result);
+            return (succeeded, result);
+        });
         CdpTimelineStatus = ok ? $"{message}（想还原就用同目录下的 .bak-* 备份文件）" : message;
     }
 

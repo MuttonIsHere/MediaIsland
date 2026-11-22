@@ -40,6 +40,36 @@ MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.2 已加载
 现在时间轴退回零、播放状态退回 `Unknown`，**标题和封面照常显示**；`WindowsMediaController` 里同类的
 两处解引用也补了空值防护（同仓库 `WindowsSmtcMediaPlaybackController` 早就用了 `?.`，只是这三处漏了）。
 
+**修：QQ 音乐被显示成「微信」**
+
+QQ 音乐内置了微信小程序运行时（WMPF），会拉起若干 `WeChatAppEx.exe`，路径形如
+`...\AppData\Roaming\Tencent\QQMusic\wmpf\...\WeChatAppEx.exe` —— 同时含 `Tencent` 与 `QQMusic`。
+旧打分只看「最长命中」，它和本体 `D:\QQMusic\QQMusic.exe` 同分（7 + 10 窗口），
+谁先被枚举谁赢；而 `WeChatAppEx.exe` 的文件描述恰好是「微信」，大屏上于是写着微信。
+
+现在的判定改成两条：命中标识段越多越可信（每多一段 +15）；**进程名与产品段完全一致**时 +100。
+实测本体 117 分、WMPF 辅助进程 22 分。另外 `Tencent.QQMusic` 已加入显式映射，
+显示名不再依赖进程猜测。
+
+**修：来源名称里的底层脏数据**
+
+新增 `MediaSourceDisplayNamePrettifier`：打包应用 AUMID（`..._8wekyb3d8bbwe!App`）、
+反域名（`cn.toside.music.desktop`）、纯 GUID 都会在显示前清洗成产品名或「正在播放」；
+常见播放器（QQ 音乐、网易云、Spotify、酷狗、酷我、Apple Music、foobar2000、PotPlayer、VLC、
+LX Music、AMLL…）统一走名称字典。
+
+**修：设置页按钮把 UI 卡住 1.5 秒**
+
+「重启网易云以精确同步」「启动网易云」「生成/修补快捷方式」原本在 UI 线程同步执行
+（结束进程 → `Thread.Sleep(1500)` → Shell 启动 / COM 调用）。现在全部移到线程池；
+`AudioFrameHub.Dispose()` 里同步等待 `StopAsync` 也改成**有上限的等待**（2 秒），
+禁用插件时界面不会冻住。
+
+**修：来源解析失败会永久污染缓存**
+
+`_cache` 存的是 `Task`，一旦该 Task 带着异常完成，之后每次 `await` 都会重新抛，
+这个播放源就永久变成错误态。现在解析异常会回退成基础信息并记一条 Warn。
+
 **修：打包脚本两个会误导人的问题**
 
 - `Tools/Pack-Cipx.ps1` 没检查 `dotnet publish` 的退出码。原生进程失败只体现在 `$LASTEXITCODE`，
@@ -66,3 +96,9 @@ unzip -l MediaIsland.cipx    # 应为 16 files，且不含 publish/ 前缀
 - ClassIsland **2.1.0.1**（`net8.0`，`apiVersion 2.1.0.1`）；2.2 预览版请用 `1.2.0` 那个包。
 - Windows 10 Build 17763 (1809) 或以上。
 - 网易云精确同步需要通过插件提供的按钮/快捷方式启动网易云（带 `--remote-debugging-port=9223`）。
+
+## 致谢
+
+插件原作者是 [bywhite0（白影White）](https://github.com/bywhite0/MediaIsland)：
+歌词同步、音源适配、UI 都是他写的。本仓库只是在他停更后补兼容与修复。
+觉得好用的话，请去给原仓库点一个 Star。

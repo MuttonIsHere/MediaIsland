@@ -48,3 +48,50 @@ public class MediaSourceDisplayNameResolverTests
             MediaSourceDisplayNameResolver.Resolve(Fallback("Spotify"), null, "   "));
     }
 }
+
+/// <summary>
+/// 「不让用户看到底层脏数据」这条规则的回归：打包应用 AUMID、反域名、GUID 都要洗成人话。
+/// </summary>
+public class MediaSourceDisplayNamePrettifierTests
+{
+    [Theory]
+    [InlineData("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic", "ZuneMusic")]
+    [InlineData("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", "Spotify")]
+    [InlineData("cn.toside.music.desktop", "desktop")]
+    [InlineData("Tencent.QQMusic", "QQMusic")]
+    [InlineData("cloudmusic.exe", "cloudmusic")]
+    public void Prettify_IdentifierLikeValues_ReduceToProductSegment(string sourceApp, string expected)
+    {
+        Assert.Equal(expected, MediaSourceDisplayNamePrettifier.Prettify(sourceApp));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("3f2a1b9c-8d4e-4f6a-9b2c-1d3e5f7a9b0c")]
+    [InlineData("{3f2a1b9c-8d4e-4f6a-9b2c-1d3e5f7a9b0c}")]
+    public void Prettify_OpaqueValues_FallBackToGenericLabel(string sourceApp)
+    {
+        Assert.Equal(MediaSourceDisplayNamePrettifier.FallbackDisplayName, MediaSourceDisplayNamePrettifier.Prettify(sourceApp));
+    }
+
+    [Theory]
+    [InlineData("QQ音乐")]
+    [InlineData("网易云音乐")]
+    [InlineData("SPlayer Next")]
+    [InlineData("Media Player")]
+    public void Normalize_HumanReadableNames_AreLeftUntouched(string displayName)
+    {
+        Assert.Equal(displayName, MediaSourceDisplayNamePrettifier.Normalize(displayName));
+    }
+
+    [Fact]
+    public void Normalize_RawAumid_IsCleanedInsteadOfShownRaw()
+    {
+        Assert.Equal("QQMusic", MediaSourceDisplayNamePrettifier.Normalize("Tencent.QQMusic"));
+        Assert.Equal("Media Player", MediaSourceDisplayNamePrettifier.Normalize("Media Player"));
+        Assert.Equal(
+            MediaSourceDisplayNamePrettifier.FallbackDisplayName,
+            MediaSourceDisplayNamePrettifier.Normalize("3f2a1b9c-8d4e-4f6a-9b2c-1d3e5f7a9b0c"));
+    }
+}

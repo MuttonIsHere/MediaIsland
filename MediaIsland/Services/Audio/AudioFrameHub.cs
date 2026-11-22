@@ -223,12 +223,18 @@ public sealed class AudioFrameHub : IDisposable
         _source.FrameAvailable -= OnFrameAvailable;
 
         // 停服路径必须无条件停采集，否则插件禁用后音频端点仍被占着。
+        // Dispose 是同步的，而 StopAsync 可能等到音频回调收尾；放到线程池并设上限，
+        // 别让禁用插件的那一刻把 UI 线程卡死。
         if (Volatile.Read(ref _capturing))
         {
             Volatile.Write(ref _capturing, false);
             try
             {
-                _source.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var stopTask = Task.Run(() => _source.StopAsync(CancellationToken.None));
+                if (!stopTask.Wait(TimeSpan.FromSeconds(2)))
+                {
+                    _logger?.LogDebug("[音频] 停止采集超时（2s），已放弃等待");
+                }
             }
             catch (Exception ex)
             {

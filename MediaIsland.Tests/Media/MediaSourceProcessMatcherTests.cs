@@ -206,6 +206,65 @@ public class MediaSourceProcessMatcherTests
     }
 
     [Fact]
+    public void ScoreCandidate_SharedVendorPrefix_DoesNotStealAnotherAppSession()
+    {
+        // 现场复现：QQ 音乐的 AUMID 是 Tencent.QQMusic，微信装在 ...\Tencent\WeChat\ 下，
+        // 两者路径都含 "Tencent"。旧打分只看最长命中，两者同分，微信靠枚举顺序赢，
+        // 大屏上于是把 QQ 音乐显示成「微信」。
+        const string sourceApp = "Tencent.QQMusic";
+        var variants = MediaSourceProcessMatcher.GetIdentifierVariants(sourceApp);
+
+        var qqMusic = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp,
+            @"C:\Program Files (x86)\Tencent\QQMusic\QQMusic.exe",
+            hasMainWindow: false,
+            variants);
+        var weChat = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp,
+            @"C:\Program Files\Tencent\WeChat\WeChat.exe",
+            hasMainWindow: true,
+            variants);
+
+        Assert.True(qqMusic > 0);
+        Assert.True(qqMusic > weChat, $"QQ 音乐得分 {qqMusic} 应高于微信 {weChat}");
+    }
+
+    [Fact]
+    public void ScoreCandidate_MoreMatchedSegments_OutranksVendorOnlyMatch()
+    {
+        const string sourceApp = "Tencent.QQMusic";
+        var variants = MediaSourceProcessMatcher.GetIdentifierVariants(sourceApp);
+
+        // 同为腾讯系，但只有 QQMusic 目录名同时命中 Tencent 与 QQMusic 两段。
+        var dedicated = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp, @"C:\Tencent\QQMusic\QQMusic.exe", false, variants);
+        var vendorOnly = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp, @"C:\Tencent\WeGame\WeGame.exe", true, variants);
+
+        Assert.True(dedicated > vendorOnly);
+    }
+
+    [Fact]
+    public void ScoreCandidate_EmbeddedWeChatHelper_LosesToActualExecutable()
+    {
+        // 现场实测：QQ 音乐内置微信小程序运行时，WeChatAppEx.exe 的路径同时含
+        // Tencent 与 QQMusic 两段，比本体 D:\QQMusic\QQMusic.exe 命中更多；
+        // 但只有本体的进程名与标识段完全一致，必须优先。
+        const string sourceApp = "Tencent.QQMusic";
+        var variants = MediaSourceProcessMatcher.GetIdentifierVariants(sourceApp);
+
+        var actual = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp, @"D:\QQMusic\QQMusic.exe", hasMainWindow: true, variants);
+        var helper = MediaSourceProcessMatcher.ScoreCandidate(
+            sourceApp,
+            @"C:\Users\x\AppData\Roaming\Tencent\QQMusic\wmpf\2.2.3\WeChatAppEx.exe",
+            hasMainWindow: false,
+            variants);
+
+        Assert.True(actual > helper, $"本体得分 {actual} 应高于 WMPF 辅助进程 {helper}");
+    }
+
+    [Fact]
     public void ScoreCandidate_NoVariants_ReturnsZero()
     {
         Assert.Equal(0, MediaSourceProcessMatcher.ScoreCandidate(

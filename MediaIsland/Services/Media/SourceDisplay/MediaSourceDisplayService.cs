@@ -18,13 +18,61 @@ public sealed class MediaSourceDisplayService(
         {
             ["cloudmusic"] = "网易云音乐",
             ["cloudmusic.exe"] = "网易云音乐",
+            // QQ 音乐的 SMTC AUMID 是 Tencent.QQMusic。它和微信共用 "Tencent" 这一层
+            // 安装目录，进程匹配曾把会话判给 ...\Tencent\WeChat\WeChat.exe，
+            // 大屏上于是显示成「微信」。这里显式钉死显示名，不再依赖进程猜测。
+            ["Tencent.QQMusic"] = "QQ音乐",
+            ["qqmusic.exe"] = "QQ音乐",
             ["cn.toside.music.desktop"] = "LX Music",
             ["net.stevexmh.amllplayer"] = "AMLL Player",
             ["spotify.exe"] = "Spotify",
             ["SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"] = "Spotify",
+            ["Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"] = "Media Player",
             ["MSEdge"] = "Microsoft Edge",
-            ["msedge.exe"] = "Microsoft Edge"
+            ["msedge.exe"] = "Microsoft Edge",
+            ["chrome.exe"] = "Chrome",
+            ["foobar2000.exe"] = "foobar2000",
+            ["PotPlayerMini64.exe"] = "PotPlayer",
+            ["PotPlayerMini.exe"] = "PotPlayer",
+            ["vlc.exe"] = "VLC",
+            ["MusicBee.exe"] = "MusicBee",
+            ["AIMP.exe"] = "AIMP",
+            ["kugou.exe"] = "酷狗音乐",
+            ["kwmusic.exe"] = "酷我音乐"
         };
+
+    /// <summary>
+    /// 标识里出现这些片段就认为是某个已知播放器。
+    /// </summary>
+    /// <remarks>
+    /// AUMID 的形态太杂（反域名、打包应用、可执行文件名），穷举不现实；
+    /// 用「包含」规则兜住同一款应用的不同写法，顺序自上而下匹配。
+    /// </remarks>
+    private static readonly (string Needle, string DisplayName)[] FuzzyNameRules =
+    [
+        ("qqmusic", "QQ音乐"),
+        ("cloudmusic", "网易云音乐"),
+        ("spotify", "Spotify"),
+        ("kugou", "酷狗音乐"),
+        ("kwmusic", "酷我音乐"),
+        ("kuwo", "酷我音乐"),
+        ("migu", "咪咕音乐"),
+        ("applemusic", "Apple Music"),
+        ("zunemusic", "Media Player"),
+        ("musicbee", "MusicBee"),
+        ("foobar", "foobar2000"),
+        ("potplayer", "PotPlayer"),
+        ("vlc", "VLC"),
+        ("aimp", "AIMP"),
+        ("amllplayer", "AMLL Player"),
+        ("lx-music", "LX Music"),
+        ("lxmusic", "LX Music"),
+        ("bilibili", "哔哩哔哩"),
+        ("youtube", "YouTube"),
+        ("msedge", "Microsoft Edge"),
+        ("wechat", "微信"),
+        ("weixin", "微信")
+    ];
 
     private static readonly IReadOnlyDictionary<string, Uri> BundledIconMap =
         new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase)
@@ -57,6 +105,50 @@ public sealed class MediaSourceDisplayService(
     }
 
     private async Task<MediaSourceDisplayInfo> ResolveCoreAsync(
+        string sourceApp,
+        string? iconPath,
+        string? customDisplayName,
+        CancellationToken cancellationToken)
+    {
+        MediaSourceDisplayInfo info;
+        try
+        {
+            info = await ResolveCoreInnerAsync(sourceApp, iconPath, customDisplayName, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // 这个 Task 会被塞进 _cache；一旦带异常留在字典里，之后每次 await 都会重新抛，
+            // 该播放源就永久变成错误态。这里吞掉并回退成能显示的最基本信息。
+            logger.LogWarning(ex, "[媒体] 解析播放源信息失败，回退为基础信息：{SourceApp}", sourceApp);
+            info = new MediaSourceDisplayInfo(
+                sourceApp,
+                MediaSourceDisplayNamePrettifier.Prettify(sourceApp),
+                null,
+                MediaSourceDisplayKind.Unknown);
+        }
+
+        var normalized = MediaSourceDisplayNamePrettifier.Normalize(info.DisplayName, sourceApp);
+        if (!string.Equals(normalized, info.DisplayName, StringComparison.Ordinal))
+        {
+            info = info with { DisplayName = normalized };
+        }
+
+        // 排查「来源显示成别的应用」时，这一行是唯一能对上号的证据：
+        // AUMID 是 Windows 给的原值，显示名是本插件最终画到组件上的东西。
+        logger.LogInformation(
+            "[媒体] 来源解析：AUMID={SourceApp} 显示名={DisplayName} 类型={Kind} 图标={HasIcon}",
+            sourceApp,
+            info.DisplayName,
+            info.Kind,
+            info.Icon != null);
+        return info;
+    }
+
+    private async Task<MediaSourceDisplayInfo> ResolveCoreInnerAsync(
         string sourceApp,
         string? iconPath,
         string? customDisplayName,
@@ -176,14 +268,13 @@ public sealed class MediaSourceDisplayService(
             return new MappedDisplayName(displayName, true);
         }
 
-        if (sourceApp.Contains("cloudmusic", StringComparison.OrdinalIgnoreCase))
+        var lower = sourceApp.ToLowerInvariant();
+        foreach (var (needle, name) in FuzzyNameRules)
         {
-            return new MappedDisplayName("网易云音乐", true);
-        }
-
-        if (sourceApp.Contains("spotify", StringComparison.OrdinalIgnoreCase))
-        {
-            return new MappedDisplayName("Spotify", true);
+            if (lower.Contains(needle, StringComparison.Ordinal))
+            {
+                return new MappedDisplayName(name, true);
+            }
         }
 
         // .exe 形式的 AUMID 去掉扩展名只是兜底，进程自身的描述名更准确，不算显式映射。
@@ -192,7 +283,8 @@ public sealed class MediaSourceDisplayService(
             return new MappedDisplayName(Path.GetFileNameWithoutExtension(sourceApp), false);
         }
 
-        return new MappedDisplayName(sourceApp, false);
+        // 认不出来的标识也要先洗一遍，别把 GUID / 完整 AUMID 丢给 UI。
+        return new MappedDisplayName(MediaSourceDisplayNamePrettifier.Prettify(sourceApp), false);
     }
 
     private sealed record CacheKey(string SourceApp, string? IconPath, string? CustomDisplayName);
