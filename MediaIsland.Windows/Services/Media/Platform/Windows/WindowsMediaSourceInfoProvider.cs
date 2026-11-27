@@ -226,6 +226,10 @@ public sealed class WindowsMediaSourceInfoProvider(
         }
 
         // 阶段二：仅对候选读完整路径，取综合分最高者。
+        // 这里额外要求命中「产品段」（Tencent.QQMusic 的 QQMusic）：只撞上厂商目录
+        // （...\Tencent\Weixin\、...\Tencent\WXWork\）的进程一律不算，
+        // 宁可这次没有图标，也不能把别的应用的图标顶上去。
+        var productToken = MediaSourceProcessMatcher.GetProductToken(sourceApp);
         string? bestPath = null;
         var bestScore = 0;
         foreach (var (process, hasWindow) in candidates)
@@ -234,6 +238,11 @@ public sealed class WindowsMediaSourceInfoProvider(
             {
                 var path = WindowsProcessPathHelper.TryGetExecutablePath(process);
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    continue;
+                }
+
+                if (!MediaSourceProcessMatcher.MatchesProductToken(path, productToken))
                 {
                     continue;
                 }

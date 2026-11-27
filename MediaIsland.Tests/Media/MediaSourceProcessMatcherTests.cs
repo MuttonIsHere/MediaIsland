@@ -265,6 +265,25 @@ public class MediaSourceProcessMatcherTests
     }
 
     [Fact]
+    public void GetProductToken_TakesLastSegmentNotVendor()
+    {
+        Assert.Equal("QQMusic", MediaSourceProcessMatcher.GetProductToken("Tencent.QQMusic"));
+        Assert.Equal("Spotify", MediaSourceProcessMatcher.GetProductToken("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"));
+        Assert.Equal("cloudmusic", MediaSourceProcessMatcher.GetProductToken("cloudmusic.exe"));
+    }
+
+    [Fact]
+    public void MatchesProductToken_VendorOnlyPath_IsRejected()
+    {
+        // 实测现场：企业微信 / 微信 / WorkBuddy 的 editor_sdk 都在 Tencent 目录下，
+        // 只有厂商段可用时会一起命中，图标就被别的应用顶掉。
+        Assert.False(MediaSourceProcessMatcher.MatchesProductToken(@"D:\Tencent\Weixin\Weixin.exe", "QQMusic"));
+        Assert.False(MediaSourceProcessMatcher.MatchesProductToken(@"C:\Program Files\Tencent\WXWork\WXWork.exe", "QQMusic"));
+        Assert.True(MediaSourceProcessMatcher.MatchesProductToken(@"D:\QQMusic\QQMusic.exe", "QQMusic"));
+        Assert.True(MediaSourceProcessMatcher.MatchesProductToken(@"C:\anything\whatever.exe", null));
+    }
+
+    [Fact]
     public void ScoreCandidate_NoVariants_ReturnsZero()
     {
         Assert.Equal(0, MediaSourceProcessMatcher.ScoreCandidate(

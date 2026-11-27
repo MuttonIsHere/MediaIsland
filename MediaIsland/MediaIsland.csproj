@@ -21,9 +21,9 @@
 		<!-- Keep in lockstep with manifest.yml: the host displays the manifest
 		     version, but a stale assembly version makes crash reports and
 		     `PluginStartupLog` disagree with what users see in the plugin list. -->
-		<Version>1.2.2</Version>
-		<AssemblyVersion>1.2.2</AssemblyVersion>
-		<FileVersion>1.2.2</FileVersion>
+		<Version>1.2.3</Version>
+		<AssemblyVersion>1.2.3</AssemblyVersion>
+		<FileVersion>1.2.3</FileVersion>
 		<AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
 	</PropertyGroup>
 

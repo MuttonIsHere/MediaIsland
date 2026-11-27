@@ -81,7 +81,16 @@ public sealed class MediaSourceDisplayService(
             ["net.stevexmh.amllplayer"] = new("avares://MediaIsland/Assets/SourceAppIcons/net.stevexmh.amllplayer.png")
         };
 
-    private readonly ConcurrentDictionary<CacheKey, Task<MediaSourceDisplayInfo>> _cache = new();
+    private readonly ConcurrentDictionary<CacheKey, CacheEntry> _cache = new();
+
+    /// <summary>带图标的解析结果可以缓存久一点，进程扫描不必每次切歌都做。</summary>
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// 没解析出图标的（多半是播放器进程还没起来）只缓存很短时间，
+    /// 等它启动后能自动纠正——否则「先开宿主、后开播放器」会一直显示没有图标。
+    /// </summary>
+    private static readonly TimeSpan IconlessCacheTtl = TimeSpan.FromSeconds(20);
 
     public Task<MediaSourceDisplayInfo> ResolveAsync(
         string sourceApp,
@@ -91,9 +100,31 @@ public sealed class MediaSourceDisplayService(
         var iconPath = source?.IconPath;
         var customDisplayName = source?.CustomDisplayName;
         var cacheKey = new CacheKey(sourceApp, iconPath, customDisplayName);
-        return _cache.GetOrAdd(
+
+        var entry = _cache.GetOrAdd(
             cacheKey,
-            _ => ResolveCoreAsync(sourceApp, iconPath, customDisplayName, cancellationToken));
+            _ => new CacheEntry(
+                DateTimeOffset.UtcNow,
+                ResolveCoreAsync(sourceApp, iconPath, customDisplayName, cancellationToken)));
+
+        if (!IsExpired(entry))
+        {
+            return entry.Task;
+        }
+
+        var refreshed = new CacheEntry(
+            DateTimeOffset.UtcNow,
+            ResolveCoreAsync(sourceApp, iconPath, customDisplayName, cancellationToken));
+        _cache[cacheKey] = refreshed;
+        return refreshed.Task;
+    }
+
+    private static bool IsExpired(CacheEntry entry)
+    {
+        var ttl = entry.Task.IsCompletedSuccessfully && entry.Task.Result.Icon == null
+            ? IconlessCacheTtl
+            : CacheTtl;
+        return DateTimeOffset.UtcNow - entry.CreatedAt > ttl;
     }
 
     public void Invalidate(string sourceApp)
@@ -288,6 +319,8 @@ public sealed class MediaSourceDisplayService(
     }
 
     private sealed record CacheKey(string SourceApp, string? IconPath, string? CustomDisplayName);
+
+    private sealed record CacheEntry(DateTimeOffset CreatedAt, Task<MediaSourceDisplayInfo> Task);
 }
 
 /// <param name="IsExplicit">是否命中内置映射表；命中时应覆盖平台返回的名称。</param>

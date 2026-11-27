@@ -79,6 +79,53 @@ public static class MediaSourceProcessMatcher
     }
 
     /// <summary>
+    /// 取 AUMID 的「产品段」——最后一个有区分度的标识段。
+    /// </summary>
+    /// <remarks>
+    /// <c>Tencent.QQMusic</c> 的产品段是 <c>QQMusic</c>，<c>Tencent</c> 只是厂商目录。
+    /// 只用厂商段匹配会出事：微信在 <c>D:\Tencent\Weixin\</c>、企业微信在
+    /// <c>...\Tencent\WXWork\</c>、连 WorkBuddy 自带的 <c>editor_sdk.exe</c> 都在
+    /// <c>...\@tencent\...</c> 下——实测有 18 个进程同时命中 <c>Tencent</c> 且同分，
+    /// 播放器不在时，谁先被枚举到谁就成了封面来源，图标因此被别的应用顶掉。
+    /// </remarks>
+    public static string? GetProductToken(string sourceApp)
+    {
+        if (string.IsNullOrWhiteSpace(sourceApp))
+        {
+            return null;
+        }
+
+        var segments = sourceApp
+            .Split(Separators, StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment =>
+            {
+                var variant = segment;
+                foreach (var noise in NoiseSegments)
+                {
+                    variant = variant.Replace(noise, string.Empty, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return variant.Trim();
+            })
+            .Where(variant => variant.Length >= MinVariantLength)
+            .ToList();
+
+        return segments.Count == 0 ? null : segments[^1];
+    }
+
+    /// <summary>候选路径是否命中了产品段；产品段未知时一律放行。</summary>
+    public static bool MatchesProductToken(string path, string? productToken)
+    {
+        if (string.IsNullOrWhiteSpace(productToken))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(path) &&
+               path.Contains(productToken, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// 只按进程名打分，不触碰进程路径。用于在昂贵的路径解析前廉价筛选候选。
     /// </summary>
     public static int ScoreProcessName(
