@@ -51,8 +51,8 @@ ClassIsland 自带 `设置 → 插件 → 从文件安装`，但这个包**不�
 打开 `data\Logs\` 里最新的日志，搜索 `MediaIsland`，应该能看到：
 
 ```
-此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.2),…
-MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.2 已加载
+此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.3),…
+MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.3 已加载
 ```
 
 然后在 ClassIsland 的 `设置 → 组件` 里，能搜到「正在播放」「实时歌词」等组件，拖到主界面行里即可。

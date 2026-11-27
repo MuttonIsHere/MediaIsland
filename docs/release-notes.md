@@ -27,8 +27,8 @@
 装好的判据（日志里能看到）：
 
 ```
-此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.2),…
-MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.2 已加载
+此次会话已加载插件:…,MediaIsland(bywhite.mediaisland.ce,1.2.3),…
+MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.3 已加载
 ```
 
 ## 本版改了什么
