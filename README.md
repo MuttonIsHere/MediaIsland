@@ -13,7 +13,7 @@
 
 | 你的 ClassIsland 版本 | 用哪个包 | 说明 |
 | --- | --- | --- |
-| **2.1.0.1（官方稳定版）** | [`v1.2.2`](https://github.com/MuttonIsHere/MediaIsland/releases/latest) | **就是给这个版本做的**，`net8.0` + `apiVersion 2.1.0.1` |
+| **2.1.0.1（官方稳定版）** | [`v1.2.3`](https://github.com/MuttonIsHere/MediaIsland/releases/latest) | **就是给这个版本做的**，`net8.0` + `apiVersion 2.1.0.1` |
 | 2.2 预览版 / 自己编译的宿主 | [`1.2.0`](https://github.com/MuttonIsHere/MediaIsland/releases/tag/1.2.0) | `net10.0` + `apiVersion 2.2.0.0` |
 
 怎么查自己的版本：打开 ClassIsland → `设置` → `关于`，看那串版本号。
@@ -22,7 +22,7 @@
 
 ## 二、安装：三步，不需要懂技术
 
-1. **下载** Release 里的 `.cipx` 文件（例如 `MediaIsland-CE-1.2.2-CI2101.cipx`）。
+1. **下载** Release 里的 `.cipx` 文件（例如 `MediaIsland-CE-1.2.3-CI2101.cipx`）。
 2. **改后缀**：把文件名最后的 `.cipx` 改成 `.zip`，然后解压。
 3. **放进插件目录**：把解压出来的所有文件（包括 `manifest.yml`）放到
    ```
@@ -68,9 +68,13 @@ MediaIsland.Services.PluginStartupLog|MediaIsland v1.2.3 已加载
 这种情况插件拿不到任何信息，会安静地隐藏自己，不会报错。
 
 **来源图标/名字显示成别的应用？**
-Windows 给的 AUMID 有时很脏（比如 QQ 音乐内置小程序运行时会带出一堆 `WeChatAppEx.exe`）。
-从 1.2.2 起，插件的来源解析会优先认进程名，并对常见播放器做显式映射，
-认不出来的标识也只会显示成「正在播放」，不会把 GUID 甩到大屏上。
+Windows 给的 AUMID 有时很脏：QQ 音乐内置微信小程序运行时，会带出一堆 `WeChatAppEx.exe`；
+`Tencent.QQMusic` 里的 `Tencent` 又和微信、企业微信共用同一个安装目录。
+
+从 1.2.3 起，来源解析要求**命中产品段**（`QQMusic`）才算数——只撞上厂商目录
+（`...\Tencent\Weixin\`、`...\Tencent\WXWork\`）的进程一律不算，
+实在找不到就**不显示图标**，也不会拿别的应用顶上；名字方面常见播放器走显式映射，
+认不出来的标识只会显示成「正在播放」，不会把 GUID 甩到大屏上。
 
 **歌词不动 / 一直慢半拍？**
 见下一节。网易云音乐需要特殊启动方式。
